@@ -78,7 +78,15 @@ class DataLoader:
             dtype_map = self._build_dtype_map()
 
         # Force all columns to string on read to avoid dtype inference/casting errors
-        df = pd.read_csv(path, low_memory=False, header=header, names=names, dtype=str, engine="c", on_bad_lines="warn",nrows=nrows)
+        df = pd.read_csv(
+            path,
+            low_memory=True,
+            header=header,
+            names=names,
+            engine="c",
+            on_bad_lines="warn",
+            nrows=nrows,
+        )
         df = self._clean_columns(df)
         print(f"  shape: {df.shape[0]:,} rows, {df.shape[1]} columns")
         return df

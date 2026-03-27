@@ -1,13 +1,13 @@
 {
   "model_name": "Random Forest",
   "overall_metrics": {
-    "accuracy": 0.9409955954458572,
-    "precision_weighted": 0.9425344627550643,
-    "recall_weighted": 0.9409955954458572,
-    "f1_score_weighted": 0.9415726473756325,
-    "precision_macro": 0.8771241324106717,
-    "recall_macro": 0.8847509433412153,
-    "f1_score_macro": 0.8806283298414374
+    "accuracy": 0.9387102135793235,
+    "precision_weighted": 0.9412012180146384,
+    "recall_weighted": 0.9387102135793235,
+    "f1_score_weighted": 0.9394972617258451,
+    "precision_macro": 0.8733580280732287,
+    "recall_macro": 0.886529342951643,
+    "f1_score_macro": 0.8790417671858606
   },
   "class_labels": [
     "Normal",
@@ -19,44 +19,44 @@
   ],
   "per_class_metrics": {
     "Normal": {
-      "precision": 0.9995886043402242,
-      "recall": 0.9874022147719191,
-      "f1_score": 0.9934580394561995,
+      "precision": 0.9996914532551682,
+      "recall": 0.987503809814081,
+      "f1_score": 0.9935602575896965,
       "support": 9843,
       "quality": "GOOD"
     },
     "Generic": {
-      "precision": 0.9909648273636656,
-      "recall": 0.9460874922982132,
-      "f1_score": 0.9680063041765169,
+      "precision": 0.995136186770428,
+      "recall": 0.9454713493530499,
+      "f1_score": 0.9696682464454977,
       "support": 3246,
       "quality": "GOOD"
     },
     "Fuzzers": {
-      "precision": 0.9547325102880658,
-      "recall": 0.9818272342544188,
-      "f1_score": 0.9680903289150712,
+      "precision": 0.9483793517406963,
+      "recall": 0.9833208862335076,
+      "f1_score": 0.9655340992422391,
       "support": 4017,
       "quality": "GOOD"
     },
     "Exploits": {
-      "precision": 0.8515390901661672,
-      "recall": 0.8464662875710804,
-      "f1_score": 0.8489951113525258,
+      "precision": 0.8585657370517928,
+      "recall": 0.8169509883563498,
+      "f1_score": 0.8372415706951575,
       "support": 3693,
       "quality": "OK"
     },
     "Reconnaissance": {
-      "precision": 0.9060862555421201,
-      "recall": 0.9509306260575296,
-      "f1_score": 0.9279669762641899,
+      "precision": 0.890894819466248,
+      "recall": 0.9602368866328257,
+      "f1_score": 0.9242671009771987,
       "support": 2364,
       "quality": "GOOD"
     },
     "DoS": {
-      "precision": 0.5598335067637877,
-      "recall": 0.5957918050941307,
-      "f1_score": 0.5772532188841202,
+      "precision": 0.5474806201550387,
+      "recall": 0.6256921373200443,
+      "f1_score": 0.5839793281653747,
       "support": 903,
       "quality": "WEAK"
     }

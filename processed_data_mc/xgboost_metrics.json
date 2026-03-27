@@ -1,13 +1,13 @@
 {
   "model_name": "XGBoost",
   "overall_metrics": {
-    "accuracy": 0.9443197872517244,
-    "precision_weighted": 0.9439166219356171,
-    "recall_weighted": 0.9443197872517244,
-    "f1_score_weighted": 0.9438896430709212,
-    "precision_macro": 0.883947528043381,
-    "recall_macro": 0.8792687015543041,
-    "f1_score_macro": 0.8810699142826625
+    "accuracy": 0.9433640821075376,
+    "precision_weighted": 0.943975769416896,
+    "recall_weighted": 0.9433640821075376,
+    "f1_score_weighted": 0.9435418271515728,
+    "precision_macro": 0.8809605120896021,
+    "recall_macro": 0.885468142455986,
+    "f1_score_macro": 0.8830497357630471
   },
   "class_labels": [
     "Normal",
@@ -19,44 +19,44 @@
   ],
   "per_class_metrics": {
     "Normal": {
-      "precision": 0.9993830334190231,
-      "recall": 0.9874022147719191,
-      "f1_score": 0.9933565004088307,
+      "precision": 0.9992803536547754,
+      "recall": 0.987503809814081,
+      "f1_score": 0.9933571793561574,
       "support": 9843,
       "quality": "GOOD"
     },
     "Generic": {
-      "precision": 0.9866708981275786,
-      "recall": 0.9577942082563154,
-      "f1_score": 0.9720181335000782,
+      "precision": 0.988220312002547,
+      "recall": 0.9562538508934073,
+      "f1_score": 0.9719743228432755,
       "support": 3246,
       "quality": "GOOD"
     },
     "Fuzzers": {
-      "precision": 0.9635125273656044,
-      "recall": 0.9860592481951705,
-      "f1_score": 0.9746555118110236,
+      "precision": 0.9609223300970874,
+      "recall": 0.9855613642021409,
+      "f1_score": 0.9730859038957846,
       "support": 4017,
       "quality": "GOOD"
     },
     "Exploits": {
-      "precision": 0.8409857328145266,
-      "recall": 0.8778770647170322,
-      "f1_score": 0.8590355060943297,
+      "precision": 0.8529252437703142,
+      "recall": 0.8526942864879502,
+      "f1_score": 0.852809749492214,
       "support": 3693,
       "quality": "GOOD"
     },
     "Reconnaissance": {
-      "precision": 0.9131329765335529,
-      "recall": 0.9382402707275804,
-      "f1_score": 0.9255163780513248,
+      "precision": 0.9060483870967742,
+      "recall": 0.950507614213198,
+      "f1_score": 0.9277456647398844,
       "support": 2364,
       "quality": "GOOD"
     },
     "DoS": {
-      "precision": 0.6,
-      "recall": 0.5282392026578073,
-      "f1_score": 0.5618374558303887,
+      "precision": 0.5783664459161147,
+      "recall": 0.5802879291251384,
+      "f1_score": 0.5793255942509674,
       "support": 903,
       "quality": "WEAK"
     }
