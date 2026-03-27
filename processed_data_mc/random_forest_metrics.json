@@ -1,0 +1,64 @@
+{
+  "model_name": "Random Forest",
+  "overall_metrics": {
+    "accuracy": 0.9409955954458572,
+    "precision_weighted": 0.9425344627550643,
+    "recall_weighted": 0.9409955954458572,
+    "f1_score_weighted": 0.9415726473756325,
+    "precision_macro": 0.8771241324106717,
+    "recall_macro": 0.8847509433412153,
+    "f1_score_macro": 0.8806283298414374
+  },
+  "class_labels": [
+    "Normal",
+    "Generic",
+    "Fuzzers",
+    "Exploits",
+    "Reconnaissance",
+    "DoS"
+  ],
+  "per_class_metrics": {
+    "Normal": {
+      "precision": 0.9995886043402242,
+      "recall": 0.9874022147719191,
+      "f1_score": 0.9934580394561995,
+      "support": 9843,
+      "quality": "GOOD"
+    },
+    "Generic": {
+      "precision": 0.9909648273636656,
+      "recall": 0.9460874922982132,
+      "f1_score": 0.9680063041765169,
+      "support": 3246,
+      "quality": "GOOD"
+    },
+    "Fuzzers": {
+      "precision": 0.9547325102880658,
+      "recall": 0.9818272342544188,
+      "f1_score": 0.9680903289150712,
+      "support": 4017,
+      "quality": "GOOD"
+    },
+    "Exploits": {
+      "precision": 0.8515390901661672,
+      "recall": 0.8464662875710804,
+      "f1_score": 0.8489951113525258,
+      "support": 3693,
+      "quality": "OK"
+    },
+    "Reconnaissance": {
+      "precision": 0.9060862555421201,
+      "recall": 0.9509306260575296,
+      "f1_score": 0.9279669762641899,
+      "support": 2364,
+      "quality": "GOOD"
+    },
+    "DoS": {
+      "precision": 0.5598335067637877,
+      "recall": 0.5957918050941307,
+      "f1_score": 0.5772532188841202,
+      "support": 903,
+      "quality": "WEAK"
+    }
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "model_name": "XGBoost",
+  "overall_metrics": {
+    "accuracy": 0.9443197872517244,
+    "precision_weighted": 0.9439166219356171,
+    "recall_weighted": 0.9443197872517244,
+    "f1_score_weighted": 0.9438896430709212,
+    "precision_macro": 0.883947528043381,
+    "recall_macro": 0.8792687015543041,
+    "f1_score_macro": 0.8810699142826625
+  },
+  "class_labels": [
+    "Normal",
+    "Generic",
+    "Fuzzers",
+    "Exploits",
+    "Reconnaissance",
+    "DoS"
+  ],
+  "per_class_metrics": {
+    "Normal": {
+      "precision": 0.9993830334190231,
+      "recall": 0.9874022147719191,
+      "f1_score": 0.9933565004088307,
+      "support": 9843,
+      "quality": "GOOD"
+    },
+    "Generic": {
+      "precision": 0.9866708981275786,
+      "recall": 0.9577942082563154,
+      "f1_score": 0.9720181335000782,
+      "support": 3246,
+      "quality": "GOOD"
+    },
+    "Fuzzers": {
+      "precision": 0.9635125273656044,
+      "recall": 0.9860592481951705,
+      "f1_score": 0.9746555118110236,
+      "support": 4017,
+      "quality": "GOOD"
+    },
+    "Exploits": {
+      "precision": 0.8409857328145266,
+      "recall": 0.8778770647170322,
+      "f1_score": 0.8590355060943297,
+      "support": 3693,
+      "quality": "GOOD"
+    },
+    "Reconnaissance": {
+      "precision": 0.9131329765335529,
+      "recall": 0.9382402707275804,
+      "f1_score": 0.9255163780513248,
+      "support": 2364,
+      "quality": "GOOD"
+    },
+    "DoS": {
+      "precision": 0.6,
+      "recall": 0.5282392026578073,
+      "f1_score": 0.5618374558303887,
+      "support": 903,
+      "quality": "WEAK"
+    }
+  }
+}

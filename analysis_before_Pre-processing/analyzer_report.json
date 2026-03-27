@@ -1,0 +1,173 @@
+{
+  "columns_to_drop": [],
+  "categorical_columns": [
+    "ct_ftp_cmd"
+  ],
+  "binary_columns": [
+    "is_sm_ips_ports"
+  ],
+  "target_encoding_columns": [],
+  "onehot_encoding_columns": [
+    "ct_ftp_cmd"
+  ],
+  "skip_scaling_columns": [
+    "is_sm_ips_ports"
+  ],
+  "wide_range_columns": [
+    "dbytes",
+    "dload",
+    "dtcpb",
+    "ltime",
+    "res_bdy_len",
+    "sbytes",
+    "sjit",
+    "sload",
+    "stcpb",
+    "stime"
+  ],
+  "correlated_pairs": [
+    {
+      "feature_1": "stime",
+      "feature_2": "ltime",
+      "correlation": 0.9999999996613059
+    },
+    {
+      "feature_1": "swin",
+      "feature_2": "dwin",
+      "correlation": 0.9977035284642153
+    },
+    {
+      "feature_1": "dloss",
+      "feature_2": "dpkts",
+      "correlation": 0.992595573258398
+    },
+    {
+      "feature_1": "dbytes",
+      "feature_2": "dloss",
+      "correlation": 0.9912407315190722
+    },
+    {
+      "feature_1": "dbytes",
+      "feature_2": "dpkts",
+      "correlation": 0.9710544167285071
+    },
+    {
+      "feature_1": "tcprtt",
+      "feature_2": "synack",
+      "correlation": 0.9475502112242628
+    },
+    {
+      "feature_1": "tcprtt",
+      "feature_2": "ackdat",
+      "correlation": 0.9417830143843429
+    },
+    {
+      "feature_1": "sbytes",
+      "feature_2": "sloss",
+      "correlation": 0.9370006170161577
+    }
+  ],
+  "correlated_to_drop": [
+    "ackdat",
+    "dbytes",
+    "dloss",
+    "dpkts",
+    "dwin",
+    "ltime",
+    "sbytes",
+    "sloss",
+    "stime",
+    "swin",
+    "synack",
+    "tcprtt"
+  ],
+  "low_mi_features": [
+    "ct_flw_http_mthd",
+    "dtcpb",
+    "is_ftp_login",
+    "is_sm_ips_ports",
+    "stcpb"
+  ],
+  "mi_scores": {
+    "sport": 0.02019707425553996,
+    "dsport": 0.04009446403500294,
+    "dur": 0.0565681549581637,
+    "sbytes": 0.0986248575378158,
+    "dbytes": 0.0860938233894637,
+    "sttl": 0.28588987255832143,
+    "dttl": 0.2770114668041843,
+    "sloss": 0.0334352544660097,
+    "dloss": 0.026116713907077704,
+    "sload": 0.06539359219668994,
+    "dload": 0.0646929688023068,
+    "spkts": 0.035352436695941236,
+    "dpkts": 0.05818224871193267,
+    "swin": 0.19734987119636072,
+    "dwin": 0.1972698867226017,
+    "stcpb": 0.0019525146838763607,
+    "dtcpb": 0.001692349104004176,
+    "smeansz": 0.06525082337979227,
+    "dmeansz": 0.07979901035544978,
+    "trans_depth": 0.007336793285213528,
+    "res_bdy_len": 0.010161080482915308,
+    "sjit": 0.030093051210257293,
+    "djit": 0.023221382872665952,
+    "stime": 0.03387746533999958,
+    "ltime": 0.034684090820686464,
+    "sintpkt": 0.03605546172717755,
+    "dintpkt": 0.0633273181475511,
+    "tcprtt": 0.06277307901349438,
+    "synack": 0.0608752169501624,
+    "ackdat": 0.06213972856631933,
+    "is_sm_ips_ports": 0.0,
+    "ct_state_ttl": 0.10407359116810155,
+    "ct_flw_http_mthd": 0.003995185560814241,
+    "is_ftp_login": 0.000563169290824117,
+    "ct_srv_src": 0.022248715516099304,
+    "ct_srv_dst": 0.027276807117772917,
+    "ct_dst_ltm": 0.04928427489913301,
+    "ct_src_ ltm": 0.03793398130252634,
+    "ct_src_dport_ltm": 0.14326139246732728,
+    "ct_dst_sport_ltm": 0.2520431299446383,
+    "ct_dst_src_ltm": 0.053563024759212374
+  },
+  "thresholds": {
+    "missing_threshold": 0.2,
+    "correlation_threshold": 0.9,
+    "mi_threshold": 0.005,
+    "wide_range_threshold": 1000000.0
+  },
+  "stats_summary": {
+    "rows_sampled": 1277539,
+    "cols_before": 50,
+    "cols_after_drop": 48,
+    "missing_over_threshold": [],
+    "wide_range_columns": [
+      "dbytes",
+      "dload",
+      "dtcpb",
+      "ltime",
+      "res_bdy_len",
+      "sbytes",
+      "sjit",
+      "sload",
+      "stcpb",
+      "stime"
+    ],
+    "binary_columns": [
+      "is_sm_ips_ports"
+    ],
+    "categorical_columns": [
+      "ct_ftp_cmd"
+    ],
+    "high_cardinality_categoricals": [],
+    "corr_pairs_count": 8,
+    "low_mi_count": 5,
+    "sample_size_used": 1277539,
+    "rows_loaded": 1277539
+  },
+  "figure_paths": [],
+  "warnings": [
+    "Scaling suggested for wide-range numeric columns."
+  ]
+}
