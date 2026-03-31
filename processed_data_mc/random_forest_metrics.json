@@ -2,12 +2,12 @@
   "model_name": "Random Forest",
   "overall_metrics": {
     "accuracy": 0.9387102135793235,
-    "precision_weighted": 0.9413712681568182,
+    "precision_weighted": 0.9412012180146384,
     "recall_weighted": 0.9387102135793235,
-    "f1_score_weighted": 0.9395563524843076,
-    "precision_macro": 0.87330358575085,
-    "recall_macro": 0.8871183429289827,
-    "f1_score_macro": 0.8792268925216608
+    "f1_score_weighted": 0.9394972617258451,
+    "precision_macro": 0.8733580280732287,
+    "recall_macro": 0.886529342951643,
+    "f1_score_macro": 0.8790417671858606
   },
   "class_labels": [
     "Normal",
@@ -19,44 +19,44 @@
   ],
   "per_class_metrics": {
     "Normal": {
-      "precision": 0.9996914215182061,
-      "recall": 0.9874022147719191,
-      "f1_score": 0.9935088167646308,
+      "precision": 0.9996914532551682,
+      "recall": 0.987503809814081,
+      "f1_score": 0.9935602575896965,
       "support": 9843,
       "quality": "GOOD"
     },
     "Generic": {
-      "precision": 0.9944894651539709,
-      "recall": 0.9451632778804683,
-      "f1_score": 0.9691991786447639,
+      "precision": 0.995136186770428,
+      "recall": 0.9454713493530499,
+      "f1_score": 0.9696682464454977,
       "support": 3246,
       "quality": "GOOD"
     },
     "Fuzzers": {
-      "precision": 0.9469387755102041,
-      "recall": 0.9818272342544188,
-      "f1_score": 0.9640674651674407,
+      "precision": 0.9483793517406963,
+      "recall": 0.9833208862335076,
+      "f1_score": 0.9655340992422391,
       "support": 4017,
       "quality": "GOOD"
     },
     "Exploits": {
-      "precision": 0.8612617756208963,
+      "precision": 0.8585657370517928,
       "recall": 0.8169509883563498,
-      "f1_score": 0.8385214007782101,
+      "f1_score": 0.8372415706951575,
       "support": 3693,
       "quality": "OK"
     },
     "Reconnaissance": {
-      "precision": 0.8928571428571429,
-      "recall": 0.9623519458544839,
-      "f1_score": 0.9263029315960912,
+      "precision": 0.890894819466248,
+      "recall": 0.9602368866328257,
+      "f1_score": 0.9242671009771987,
       "support": 2364,
       "quality": "GOOD"
     },
     "DoS": {
-      "precision": 0.5445829338446788,
-      "recall": 0.6290143964562569,
-      "f1_score": 0.5837615621788284,
+      "precision": 0.5474806201550387,
+      "recall": 0.6256921373200443,
+      "f1_score": 0.5839793281653747,
       "support": 903,
       "quality": "WEAK"
     }

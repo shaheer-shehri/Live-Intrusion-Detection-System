@@ -196,6 +196,14 @@ curl -X POST http://127.0.0.1:8000/predict \
         "ct_dst_src_ltm": 3
     }'
 ```
+
+Windows cmd version (uses `^` for line breaks and doubled quotes inside JSON):
+
+```cmd
+curl -X POST http://127.0.0.1:8000/predict ^
+    -H "Content-Type: application/json" ^
+    -d "{""srcip"":"""",""dstip"":"""",""proto"":""tcp"",""service"":""http"",""state"":""est"",""sport"":12345,""dsport"":80,""dur"":1.2,""sbytes"":500,""dbytes"":1200,""sttl"":60,""dttl"":60,""sloss"":0,""dloss"":0,""sload"":10,""dload"":20,""spkts"":8,""dpkts"":10,""swin"":30000,""dwin"":30000,""stcpb"":1000,""dtcpb"":2000,""smeansz"":62.5,""dmeansz"":120,""trans_depth"":1,""res_bdy_len"":0,""sjit"":0.05,""djit"":0.04,""stime"":0,""ltime"":1.2,""sintpkt"":0.15,""dintpkt"":0.12,""tcprtt"":0.02,""synack"":0.01,""ackdat"":0.01,""is_sm_ips_ports"":0,""ct_state_ttl"":3,""ct_flw_http_mthd"":1,""is_ftp_login"":0,""ct_ftp_cmd"":0,""ct_srv_src"":2,""ct_srv_dst"":2,""ct_dst_ltm"":4,""ct_src__ltm"":3,""ct_src_dport_ltm"":2,""ct_dst_sport_ltm"":2,""ct_dst_src_ltm"":3}"
+```
 ## Stress Handling:
 Stress management includes:
 Rate Limiting:
