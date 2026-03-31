@@ -273,8 +273,6 @@ class MetricsCollector:
 
 class StressHandler:
     """
-    Unified Stress Handling for FastAPI
-
     Combines rate limiting, circuit breaker, and metrics collection
     into a single easy-to-use interface.
     """
@@ -291,7 +289,6 @@ class StressHandler:
     def check_request(self, client_id: str) -> None:
         """
         Check if request should be allowed
-        Raises HTTPException if rate limited or circuit is open
         """
         # Check rate limit first
         if not self.rate_limiter.is_allowed(client_id):

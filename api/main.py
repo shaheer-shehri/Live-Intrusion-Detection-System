@@ -1,20 +1,7 @@
-"""
-Intrusion Detection System API
-
-This API provides:
-- /predict: Classify network traffic as Normal or Attack type
-- /health: Detailed health check with system status
-- /metrics: Performance metrics (latency, throughput, error rates)
-- /stress/config: View/update stress handling configuration
-
-Stress Handling Features:
-- Rate Limiting: Prevents API abuse (default: 100 req/min per IP)
-- Circuit Breaker: Protects against cascade failures
-- Metrics Collection: Tracks latency, throughput, errors
-"""
-
 import math
 import time
+import asyncio
+from contextlib import asynccontextmanager
 from typing import Dict, List
 
 import numpy as np
@@ -33,10 +20,7 @@ from api.stress_handling import (
     stress_handler,
 )
 
-# ============================================================================
 # OpenAPI Response Schemas for Documentation
-# ============================================================================
-
 class RootResponse(BaseModel):
     """Root endpoint response"""
     message: str
@@ -102,67 +86,71 @@ class MessageResponse(BaseModel):
     """Generic message response"""
     message: str
 
-# ============================================================================
-# FastAPI App Setup with Enhanced Documentation
-# ============================================================================
+# Batch Processing Setup
+
+MAX_BATCH_SIZE = 10
+MAX_WAIT_TIME = 0.020  # 20 milliseconds window for micro-batching
+
+batch_queue = []
+queue_lock = asyncio.Lock()
+batch_ready_event = asyncio.Event()
+
+def _run_ml_batch(data_list: List[Dict]) -> List[str]:
+    """Runs the whole batch through the ML model synchronously."""
+    df = pd.DataFrame(data_list)
+    X_proc = pipeline.transform(df)
+    if hasattr(X_proc, "to_numpy"):
+        X_proc = X_proc.to_numpy()
+    else:
+        X_proc = np.asarray(X_proc)
+    raw_preds = model.predict(X_proc)
+    
+    results = []
+    for raw_pred in raw_preds:
+        if class_labels and int(raw_pred) < len(class_labels):
+            results.append(class_labels[int(raw_pred)])
+        else:
+            results.append(str(raw_pred))
+    return results
+
+async def predict_task():
+    """Background task that repeatedly pulls data from the queue and processes batches."""
+    while True:
+        await batch_ready_event.wait()
+        # Wait short time for more requests to arrive for optimal batch size
+        await asyncio.sleep(MAX_WAIT_TIME)
+        
+        async with queue_lock:
+            current_batch = batch_queue[:MAX_BATCH_SIZE]
+            del batch_queue[:MAX_BATCH_SIZE]
+            if not batch_queue:
+                batch_ready_event.clear()
+        
+        if not current_batch:
+            continue
+            
+        try:
+            # Offload heavy pandas/numpy work to a background thread
+            preds = await asyncio.to_thread(_run_ml_batch, [req['data'] for req in current_batch])
+            for req, pred in zip(current_batch, preds):
+                req['future'].set_result(pred)
+        except Exception as e:
+            for req in current_batch:
+                if not req['future'].done():
+                    req['future'].set_exception(e)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manages the startup and shutdown of the background batch task."""
+    task = asyncio.create_task(predict_task())
+    yield
+    task.cancel()
+
 
 app = FastAPI(
     title="Intrusion Detection System (IDS) API",
-    description="""
-## Features
-
-### Core Functionality
-- **Intrusion Detection**: Classify network traffic as Normal or Attack type using ML
-- **45 Network Features**: Full UNSW-NB15 dataset feature support
-- **Real-time Predictions**: Sub-100ms response times
-
-### Stress Handling & Resilience
-- **Rate Limiting**: Sliding window algorithm (default: 100 req/min per IP)
-- **Circuit Breaker**: Automatic failure protection with 3 states (CLOSED → OPEN → HALF_OPEN)
-- **Request Metrics**: Real-time latency (p95, p99) and throughput monitoring
-- **Automatic Recovery**: Self-healing with recovery timeout
-
-### Monitoring
-- **Health Checks**: Detailed system status endpoint
-- **Performance Metrics**: Latency percentiles, throughput, error rates
-- **Stress Config**: View and reset stress handling state
-
-## Error Codes
-- **400**: Bad Request (validation error, invalid input)
-- **429**: Too Many Requests (rate limited - retry after delay)
-- **500**: Internal Server Error (model unavailable, prediction failed)
-- **503**: Service Unavailable (circuit breaker open - service recovering)
-
-## Rate Limiting
-All endpoints except `/`, `/health`, `/metrics`, `/docs` are rate limited:
-- **Limit**: 100 requests per 60 seconds per IP
-- **Response**: Returns 429 with `Retry-After` header
-
-## Circuit Breaker States
-- **CLOSED**: Normal operation, all requests allowed
-- **OPEN**: Too many failures, requests rejected with 503
-- **HALF_OPEN**: Testing recovery, limited requests allowed
-
-## Examples
-### Healthy Response
-```json
-{"status": "healthy", "circuit_breaker": "closed"}
-```
-
-### Rate Limited
-```json
-HTTP/1.1 429 Too Many Requests
-Retry-After: 60
-{"detail": "Rate limit exceeded. Please try again later."}
-```
-
-### Circuit Breaker Open
-```json
-HTTP/1.1 503 Service Unavailable
-Retry-After: 30
-{"detail": "Service temporarily unavailable (circuit breaker open)"}
-```
-    """,
+    lifespan=lifespan,
+    description=""" API for trafic monitoring""",
     version="2.0.0",
     contact={
         "name": "IDS Support",
@@ -191,11 +179,7 @@ app.add_middleware(
 )
 def root():
     """
-    Basic health check endpoint.
-
-    Returns a simple message indicating the API is running.
-
-    **Use this for**: Liveness probes, load balancer health checks
+    health check endpoint
     """
     return {"message": "IDS API running"}
 
@@ -205,25 +189,9 @@ def root():
     response_model=HealthCheckResponse,
     tags=["Health"],
     summary="Detailed health check",
-    description="Get comprehensive API health status including circuit breaker state and error rate. Not rate limited.",
+    description="API health status",
 )
 def health_check():
-    """
-    Detailed health check endpoint.
-
-    Returns the API's overall health status with:
-    - **status**: "healthy" or "degraded"
-    - **circuit_breaker**: Current state (closed/open/half_open)
-    - **model_loaded**: Whether ML model is available
-    - **active_requests**: Current concurrent requests
-    - **error_rate**: Percentage of failed requests
-
-    **Status Rules**:
-    - Healthy: circuit is CLOSED and error rate < 10%
-    - Degraded: circuit is OPEN or error rate ≥ 10%
-
-    **Use this for**: Readiness probes, monitoring dashboards
-    """
     metrics = stress_handler.get_metrics()
 
     # Determine health status
@@ -251,44 +219,9 @@ def health_check():
     response_model=MetricsResponse,
     tags=["Monitoring"],
     summary="Performance metrics",
-    description="Get real-time performance metrics including latency percentiles and throughput. Not rate limited.",
+    description="real-time performance metrics",
 )
 def get_metrics():
-    """
-    Performance metrics endpoint.
-
-    Returns comprehensive performance statistics:
-
-    **Requests**:
-    - total: Total requests processed
-    - successful: Requests that succeeded
-    - failed: Requests that failed
-    - rate_limited: Requests rejected due to rate limiting
-
-    **Latency Metrics** (in milliseconds):
-    - average: Mean response time
-    - p95: 95th percentile (95% of requests faster than this)
-    - p99: 99th percentile (worst case for most users)
-
-    **Throughput**:
-    - requests_per_second: Current RPS
-    - active_requests: Concurrent requests being processed
-
-    **Circuit Breaker**:
-    - state: Current state (closed/open/half_open)
-
-    **Use this for**:
-    - Grafana/Prometheus dashboards
-    - Alerting systems
-    - Performance analysis
-    - Capacity planning
-
-    **Recommended Alerts**:
-    - p95_latency > 200ms
-    - p99_latency > 500ms
-    - error_rate > 1%
-    - circuit_state == "open"
-    """
     metrics = stress_handler.get_metrics()
 
     return {
@@ -318,25 +251,9 @@ def get_metrics():
     response_model=StressConfigResponse,
     tags=["Stress Handling"],
     summary="Get stress handling configuration",
-    description="View current rate limiting and circuit breaker configuration. Not rate limited.",
+    description="to view current rate limiting and circuit breaker configuration",
 )
 def get_stress_config():
-    """
-    Get current stress handling configuration.
-
-    Returns:
-
-    **Rate Limit**:
-    - requests_per_window: Max requests allowed in time window
-    - window_seconds: Time window duration in seconds
-
-    **Circuit Breaker**:
-    - failure_threshold: Failures before circuit opens
-    - recovery_timeout: Seconds before attempting recovery
-    - current_state: Current state (closed/open/half_open)
-
-    **Use this for**: Understanding API throttling and recovery behavior
-    """
     return {
         "rate_limit": {
             "requests_per_window": stress_handler.rate_limiter.config.requests_per_window,
@@ -355,22 +272,9 @@ def get_stress_config():
     response_model=MessageResponse,
     tags=["Stress Handling"],
     summary="Reset stress handling state",
-    description="Reset all stress handling counters and circuit breaker state. For testing/admin purposes. Not rate limited.",
+    description="Reset all stress handling counters and circuit breaker state",
 )
 def reset_stress_handler():
-    """
-    Reset stress handling state.
-
-    Clears:
-    - Rate limit counters for all IPs
-    - Circuit breaker state and failure counts
-    - All metrics and latency history
-
-    **Warning**: This is intended for testing and admin purposes only.
-    In production, prefer natural recovery via circuit breaker timeout.
-
-    **Use this for**: Test cleanup, metric reset
-    """
     stress_handler.reset_all()
     return {"message": "Stress handler reset successfully"}
 
@@ -500,80 +404,20 @@ def _validate_input(data: NetworkInput) -> Dict[str, object]:
     response_model=PredictionResponse,
     tags=["Prediction"],
     summary="Classify network traffic",
-    description="""
-    Predict if network traffic is Normal or Attack type.
-
-    Requires 45 network flow features from the UNSW-NB15 dataset.
-
-    **Rate Limited**: Yes (100 requests per 60 seconds per IP)
-    """,
+    description="""Predict if network traffic""",
 )
-def predict(data: NetworkInput):
-    """
-    Predict intrusion detection classification.
-
-    Accepts 45 network flow features and returns the predicted traffic type.
-
-    **Input**: NetworkInput model with 45 fields including:
-    - Source/destination IPs (optional)
-    - Protocol, service, connection state
-    - Byte counts, packet counts
-    - TTL values, connection timing
-    - And 30+ additional flow statistics
-
-    **Output**:
-    - prediction: Traffic classification (e.g., "Normal", "DoS", "Exploits", etc.)
-
-    **Validation**:
-    - All numeric fields must be non-negative
-    - GPA must be between 0.0 and 4.0
-    - All required fields must be present
-    - Invalid combinations are rejected
-
-    **Errors**:
-    - 400: Validation error (missing/invalid field)
-    - 429: Rate limited (too many requests)
-    - 500: Model unavailable or prediction failed
-    - 503: Circuit breaker open (service recovering)
-
-    **Example Request**:
-    ```json
-    {
-      "srcip": "192.168.1.10",
-      "dstip": "10.0.0.5",
-      "proto": "tcp",
-      "service": "http",
-      "state": "FIN",
-      "sport": 54321,
-      "dsport": 80,
-      ...
-    }
-    ```
-
-    **Example Response**:
-    ```json
-    {
-      "prediction": "Normal"
-    }
-    ```
-
-    **Performance**: Typical response time 50-150ms
-    """
+async def predict(data: NetworkInput):
     try:
         values = _validate_input(data)
-        df = pd.DataFrame([values])
-        X_proc = pipeline.transform(df)
-        if hasattr(X_proc, "to_numpy"):
-            X_proc = X_proc.to_numpy()
-        else:
-            X_proc = np.asarray(X_proc)
-        raw_pred = model.predict(X_proc)[0]
-
-        if class_labels and int(raw_pred) < len(class_labels):
-            label = class_labels[int(raw_pred)]
-        else:
-            label = str(raw_pred)
-
+        
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
+        
+        async with queue_lock:
+            batch_queue.append({'data': values, 'future': future})
+            batch_ready_event.set()
+            
+        label = await future
         return {"prediction": label}
     except HTTPException:
         raise
