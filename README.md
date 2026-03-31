@@ -1,4 +1,4 @@
-## Assignment: 2
+## Assignment: 3
 
 ## Shaheer Murtaza Shehri       512638
 ## Reem Saleha                  513059
@@ -196,3 +196,52 @@ curl -X POST http://127.0.0.1:8000/predict \
         "ct_dst_src_ltm": 3
     }'
 ```
+## Stress Handling:
+Stress management includes:
+Rate Limiting:
+    - Uses a sliding window algorithm to track requests per IP
+    - Each IP gets a configurable number of requests per time window
+    - Exceeding the limit returns HTTP 429 (Too Many Requests)
+
+Circuit Breaker:
+    - Monitors failure count within a time window
+    - States: CLOSED (normal), OPEN (failing fast), HALF_OPEN (testing recovery)
+    - When failures exceed threshold, circuit OPENS and rejects requests
+    - After cooldown, moves to HALF_OPEN to test if service recovered
+
+Metrics:
+    - request_count: Total requests received
+    - request_latency_seconds: Histogram of response times
+    - active_requests: Current concurrent requests
+    - error_count: Total errors by type
+
+## Stress Testing:
+Defined load testing scenarios using Locust:
+Run with: locust -f stress_tests/locustfile.py --host=http://localhost:8000
+
+HOW LOCUST WORKS:
+1. Locust spawns virtual "users" that simulate real API clients
+2. Each user executes tasks defined in the User class
+3. Tasks are weighted by the @task decorator (higher = more frequent)
+4. Locust measures:
+   - Response Time: How long each request takes
+   - Throughput: Requests per second (RPS)
+   - Failure Rate: Percentage of failed requests
+
+RUNNING STRESS TESTS:
+---------------------
+#### Basic test (10 users, spawn 1/sec)
+locust -f stress_tests/locustfile.py --host=http://localhost:8000 \\
+    --users 10 --spawn-rate 1 --run-time 60s --headless
+
+#### Heavy load test (100 users)
+locust -f stress_tests/locustfile.py --host=http://localhost:8000 \\
+    --users 100 --spawn-rate 10 --run-time 120s --headless
+
+#### Web UI mode (interactive)
+locust -f stress_tests/locustfile.py --host=http://localhost:8000
+#### Then open http://localhost:8089
+
+#### Generate HTML report
+locust -f stress_tests/locustfile.py --host=http://localhost:8000 \\
+    --users 50 --spawn-rate 5 --run-time 60s --headless --html=report.html
