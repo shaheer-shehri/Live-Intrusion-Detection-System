@@ -2,7 +2,7 @@
 
 ## Shaheer Murtaza Shehri       512638
 ## Reem Saleha                  513059
-## Sharjeel Farooq              520464
+## Muhammad Sharjeel Farooq     520464
 
 # Multiclass Intrusion Detection System (IDS)
 
