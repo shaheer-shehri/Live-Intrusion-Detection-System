@@ -172,10 +172,15 @@ class IDSUser(HttpUser):
         # Pick a random sample input
         data = random.choice(SAMPLE_INPUTS).copy()
 
-        # Add some randomization to simulate varied traffic
-        data["sport"] = random.randint(1024, 65535)
-        data["sbytes"] = random.randint(64, 10000)
-        data["dbytes"] = random.randint(0, 50000)
+        # Add randomization to simulate varied traffic
+        # IMPORTANT: All numeric fields must be floats (not ints) for API validation
+        data["sport"] = float(random.randint(1024, 65535))
+        data["dsport"] = float(random.randint(1024, 65535))
+        data["sbytes"] = float(random.randint(64, 10000))
+        data["dbytes"] = float(random.randint(0, 50000))
+        data["spkts"] = float(random.randint(1, 100))
+        data["dpkts"] = float(random.randint(1, 100))
+        data["dur"] = random.uniform(0.001, 10.0)
 
         with self.client.post(
             "/predict",
@@ -191,39 +196,77 @@ class IDSUser(HttpUser):
             elif response.status_code == 503:
                 # Circuit breaker open
                 response.failure(f"Circuit breaker open: {response.text}")
+            elif response.status_code == 400:
+                # Validation error - likely data format issue
+                response.failure(f"Validation error: {response.text}")
             else:
                 response.failure(f"Error {response.status_code}: {response.text}")
 
     @task(3)
     def health_check(self):
         """Health check endpoint - weighted 3x"""
-        self.client.get("/health", name="/health")
+        with self.client.get("/health", catch_response=True, name="/health") as response:
+            if response.status_code == 200:
+                response.success()
+            else:
+                response.failure(f"Error {response.status_code}: {response.text}")
 
     @task(2)
     def get_metrics(self):
         """Metrics endpoint - weighted 2x"""
-        self.client.get("/metrics", name="/metrics")
+        with self.client.get("/metrics", catch_response=True, name="/metrics") as response:
+            if response.status_code == 200:
+                response.success()
+            else:
+                response.failure(f"Error {response.status_code}: {response.text}")
 
     @task(1)
     def root_check(self):
         """Root endpoint - weighted 1x"""
-        self.client.get("/", name="/")
+        with self.client.get("/", catch_response=True, name="/") as response:
+            if response.status_code == 200:
+                response.success()
+            else:
+                response.failure(f"Error {response.status_code}: {response.text}")
 
 
 class HeavyLoadUser(HttpUser):
     """
-    Aggressive user for stress testing - no wait time between requests
+    Aggressive user for stress testing with controlled burst rate.
     Use this to find the breaking point of your API.
+
+    Note: Even though rate limiting is 100/min, this user bursts faster
+    to test circuit breaker and rate limiting behavior.
     """
-    wait_time = between(0, 0.01)  # Minimal wait
+    wait_time = between(0.05, 0.15)  # 50-150ms wait (more realistic than 0ms)
 
     @task
     def predict_burst(self):
-        """Burst prediction requests"""
+        """Burst prediction requests with proper type conversion"""
         data = random.choice(SAMPLE_INPUTS).copy()
-        data["sport"] = random.randint(1024, 65535)
 
-        self.client.post("/predict", json=data, name="/predict [burst]")
+        # Ensure all numeric fields are floats
+        data["sport"] = float(random.randint(1024, 65535))
+        data["dsport"] = float(random.randint(1024, 65535))
+        data["sbytes"] = float(random.randint(64, 10000))
+        data["spkts"] = float(random.randint(1, 50))
+        data["dpkts"] = float(random.randint(1, 50))
+        data["dur"] = random.uniform(0.001, 5.0)
+
+        with self.client.post(
+            "/predict",
+            json=data,
+            catch_response=True,
+            name="/predict [burst]"
+        ) as response:
+            if response.status_code == 200:
+                response.success()
+            elif response.status_code == 429:
+                response.failure(f"Rate limited: {response.text}")
+            elif response.status_code == 503:
+                response.failure(f"Circuit breaker open: {response.text}")
+            else:
+                response.failure(f"Error {response.status_code}: {response.text}")
 
 
 # Event hooks for custom logging

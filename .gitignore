@@ -5,5 +5,23 @@ __pycache__/
 *.pyd
 .pytest_cache/
 *.log
+
+# Raw datasets (not to be committed)
 data/
+UNSW_NB15(1).csv
+UNSW_NB15(2).csv
+UNSW_NB15(3).csv
+UNSW_NB15(4).csv
+UNSW-NB15.csv
+*.csv
+
+# Trained models and artifacts
 models/saved/
+*.joblib
+*.pkl
+*.h5
+*.pt
+*.pth
+
+# Processed data and feature engineering artifacts
+processed_data_mc/
