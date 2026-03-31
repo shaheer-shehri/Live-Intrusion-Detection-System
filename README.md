@@ -225,7 +225,8 @@ Metrics:
 
 ## Stress Testing:
 Defined load testing scenarios using Locust:
-Run with: locust -f stress_tests/locustfile.py --host=http://localhost:8000
+Run with: locust -f stress_tests/locustfile.py --host=http://localhost:8000 --users 10 --spawn-rate 1 --run-time 60s --headless
+
 
 HOW LOCUST WORKS:
 1. Locust spawns virtual "users" that simulate real API clients
@@ -238,18 +239,13 @@ HOW LOCUST WORKS:
 
 RUNNING STRESS TESTS:
 ---------------------
-#### Basic test (10 users, spawn 1/sec)
-locust -f stress_tests/locustfile.py --host=http://localhost:8000 \\
-    --users 10 --spawn-rate 1 --run-time 60s --headless
-
-#### Heavy load test (100 users)
-locust -f stress_tests/locustfile.py --host=http://localhost:8000 \\
-    --users 100 --spawn-rate 10 --run-time 120s --headless
+#### For 10 users and in headless mode
+locust -f stress_tests/locustfile.py --host=http://localhost:8000 --users 10 --spawn-rate 1 --run-time 60s --headless
 
 #### Web UI mode (interactive)
-locust -f stress_tests/locustfile.py --host=http://localhost:8000
+locust -f stress_tests/locustfile.py --host=http://localhost:8000 --users 10 --spawn-rate 1 --run-time 60s
+
 #### Then open http://localhost:8089
 
 #### Generate HTML report
-locust -f stress_tests/locustfile.py --host=http://localhost:8000 \\
-    --users 50 --spawn-rate 5 --run-time 60s --headless --html=report.html
+locust -f stress_tests/locustfile.py --host=http://localhost:8000 --users 10 --spawn-rate 1 --run-time 60s --headless --html=report.html
