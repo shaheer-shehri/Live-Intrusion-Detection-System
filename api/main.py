@@ -2,6 +2,7 @@ import math
 import time
 import asyncio
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Dict, List
 
 import numpy as np
@@ -11,7 +12,12 @@ from pydantic import BaseModel
 import pandas as pd
 
 from api.schemas import NetworkInput
+from api.schemas import (
+    DriftAssessmentRequest,
+    DriftAssessmentResponse,
+)
 from api.model_loader import class_labels, model, pipeline
+from monitoring import drift as drift_monitoring
 from api.stress_handling import (
     StressHandlingMiddleware,
     StressHandler,
@@ -90,10 +96,18 @@ class MessageResponse(BaseModel):
 
 MAX_BATCH_SIZE = 10
 MAX_WAIT_TIME = 0.020  # 20 milliseconds window for micro-batching
+DEFAULT_DRIFT_HISTORY_PATH = drift_monitoring.DEFAULT_DRIFT_HISTORY_PATH
+DEFAULT_BASELINE_PATH = drift_monitoring.DEFAULT_BASELINE_PATH
 
 batch_queue = []
 queue_lock = asyncio.Lock()
 batch_ready_event = asyncio.Event()
+drift_monitor = drift_monitoring.load_default_monitor(
+    model=model,
+    pipeline=pipeline,
+    baseline_path=DEFAULT_BASELINE_PATH,
+    history_path=DEFAULT_DRIFT_HISTORY_PATH,
+)
 
 def _run_ml_batch(data_list: List[Dict]) -> List[str]:
     """Runs the whole batch through the ML model synchronously."""
@@ -166,7 +180,7 @@ app = FastAPI(
 app.add_middleware(
     StressHandlingMiddleware,
     handler=stress_handler,
-    exclude_paths=["/", "/health", "/metrics", "/docs", "/openapi.json"],
+    exclude_paths=["/", "/health", "/metrics", "/drift/assess", "/drift/latest", "/docs", "/openapi.json"],
 )
 
 
@@ -423,3 +437,36 @@ async def predict(data: NetworkInput):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post(
+    "/drift/assess",
+    response_model=DriftAssessmentResponse,
+    tags=["Monitoring"],
+    summary="Assess drift for a live batch",
+    description="Compute drift metrics for a batch of live network flows and return a structured summary.",
+)
+async def assess_drift(payload: DriftAssessmentRequest):
+    if not payload.flows:
+        raise HTTPException(status_code=400, detail="At least one flow is required for drift assessment")
+
+    try:
+        frame = pd.DataFrame([item.model_dump(exclude_none=True) for item in payload.flows])
+        assessment = drift_monitor.assess(frame, store_history=payload.store_history, top_n=payload.top_n)
+        return assessment.to_dict(top_n=payload.top_n)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.get(
+    "/drift/latest",
+    response_model=DriftAssessmentResponse,
+    tags=["Monitoring"],
+    summary="Get the latest stored drift assessment",
+    description="Returns the most recent drift summary captured by the monitor.",
+)
+def latest_drift():
+    last = drift_monitor.history.last()
+    if not last:
+        raise HTTPException(status_code=404, detail="No drift history has been recorded yet")
+    return last

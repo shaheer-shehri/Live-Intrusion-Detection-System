@@ -204,6 +204,58 @@ curl -X POST http://127.0.0.1:8000/predict ^
     -H "Content-Type: application/json" ^
     -d "{""srcip"":"""",""dstip"":"""",""proto"":""tcp"",""service"":""http"",""state"":""est"",""sport"":12345,""dsport"":80,""dur"":1.2,""sbytes"":500,""dbytes"":1200,""sttl"":60,""dttl"":60,""sloss"":0,""dloss"":0,""sload"":10,""dload"":20,""spkts"":8,""dpkts"":10,""swin"":30000,""dwin"":30000,""stcpb"":1000,""dtcpb"":2000,""smeansz"":62.5,""dmeansz"":120,""trans_depth"":1,""res_bdy_len"":0,""sjit"":0.05,""djit"":0.04,""stime"":0,""ltime"":1.2,""sintpkt"":0.15,""dintpkt"":0.12,""tcprtt"":0.02,""synack"":0.01,""ackdat"":0.01,""is_sm_ips_ports"":0,""ct_state_ttl"":3,""ct_flw_http_mthd"":1,""is_ftp_login"":0,""ct_ftp_cmd"":0,""ct_srv_src"":2,""ct_srv_dst"":2,""ct_dst_ltm"":4,""ct_src__ltm"":3,""ct_src_dport_ltm"":2,""ct_dst_sport_ltm"":2,""ct_dst_src_ltm"":3}"
 ```
+## Live Traffic Drift Check
+
+The live capture script now compares captured flows against the saved training split and saves a drift graph.
+
+```bash
+python LiveTraffic_driftCheck.py --iface Ethernet --seconds 60 --predict --drift
+```
+
+Outputs:
+- `processed_data_full/live_flows.csv` for the captured live flows
+- `processed_data_full/live_flows_pred.csv` when `--predict` is enabled
+- `processed_data_full/live_drift_report.csv` with per-feature PSI scores
+- `processed_data_full/live_drift_report.png` with the drift graph
+- `processed_data_full/live_drift_dashboard.json` with dashboard-ready drift data
+
+The drift baseline defaults to `processed_data_mc/data_splits/X_train_raw.csv`. On Windows, run the capture command from an elevated shell so Scapy can sniff the interface.
+
+Example dashboard JSON shape:
+
+```json
+{
+    "overall": {
+        "score": 0.41,
+        "severity": "moderate",
+        "alert": true,
+        "level": "warning"
+    },
+    "trend": {
+        "label": "gradual",
+        "delta": 0.12,
+        "slope": 0.04
+    },
+    "top_features": [
+        {
+            "feature": "service",
+            "severity": "severe",
+            "risk_score": 0.81
+        }
+    ]
+}
+```
+
+## Drift API
+
+Send a batch of live flows to the REST API to get the same structured summary back:
+
+```bash
+curl -X POST http://127.0.0.1:8000/drift/assess \
+    -H "Content-Type: application/json" \
+    -d '{"flows": [ {"srcip": "", "dstip": "", "proto": "tcp", "service": "http", "state": "est", "sport": 12345, "dsport": 80, "dur": 1.0, "sbytes": 10, "dbytes": 20, "sttl": 60, "dttl": 60, "sloss": 0, "dloss": 0, "sload": 1, "dload": 2, "spkts": 2, "dpkts": 3, "swin": 1000, "dwin": 1000, "stcpb": 0, "dtcpb": 0, "smeansz": 5, "dmeansz": 7, "trans_depth": 0, "res_bdy_len": 0, "sjit": 0, "djit": 0, "stime": 0, "ltime": 1, "sintpkt": 0.1, "dintpkt": 0.1, "tcprtt": 0.01, "synack": 0.01, "ackdat": 0.01, "is_sm_ips_ports": 0, "ct_state_ttl": 1, "ct_flw_http_mthd": 0, "is_ftp_login": 0, "ct_ftp_cmd": 0, "ct_srv_src": 1, "ct_srv_dst": 1, "ct_dst_ltm": 1, "ct_src__ltm": 1, "ct_src_dport_ltm": 1, "ct_dst_sport_ltm": 1, "ct_dst_src_ltm": 1}]}'
+```
+
 ## Stress Handling:
 Stress management includes:
 Rate Limiting:

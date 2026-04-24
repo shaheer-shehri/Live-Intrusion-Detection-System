@@ -31,6 +31,59 @@ def client(monkeypatch):
     dummy_pipeline = DummyPipeline()
     dummy_labels = ["Normal", "Generic"]
 
+    class DummyAssessment:
+        def __init__(self):
+            self.history = []
+
+        def to_dict(self, top_n=10):
+            return {
+                "timestamp": "2026-04-24T00:00:00+00:00",
+                "batch_size": 2,
+                "feature_count": 2,
+                "drift_count": 1,
+                "severe_count": 0,
+                "drift_fraction": 0.5,
+                "severe_fraction": 0.0,
+                "overall_score": 0.41,
+                "overall_severity": "moderate",
+                "alert": True,
+                "alert_level": "warning",
+                "alert_reason": "moderate drift detected",
+                "thresholds": {"low": 0.2, "moderate": 0.4, "severe": 0.6},
+                "trend": {"label": "gradual", "delta": 0.12, "slope": 0.04},
+                "trend_delta": 0.12,
+                "trend_slope": 0.04,
+                "history_count": 0,
+                "top_features": [
+                    {
+                        "feature": "service",
+                        "feature_type": "categorical",
+                        "drift_score": 0.72,
+                        "risk_score": 0.81,
+                        "severity": "severe",
+                        "importance": 0.91,
+                        "status": "severe",
+                    }
+                ],
+                "history": [],
+                "dashboard": {
+                    "overall": {"score": 0.41, "severity": "moderate", "alert": True},
+                    "top_features": [],
+                },
+            }
+
+    class DummyHistory:
+        def last(self):
+            return None
+
+    class DummyDriftMonitor:
+        def __init__(self):
+            self.history = DummyHistory()
+
+        def assess(self, frame, store_history=True, top_n=10):
+            self.last_frame = frame
+            return DummyAssessment()
+
     # Patch both model_loader and main module references
     monkeypatch.setattr(model_loader, "model", dummy_model)
     monkeypatch.setattr(model_loader, "pipeline", dummy_pipeline)
@@ -38,6 +91,7 @@ def client(monkeypatch):
     monkeypatch.setattr(main, "model", dummy_model)
     monkeypatch.setattr(main, "pipeline", dummy_pipeline)
     monkeypatch.setattr(main, "class_labels", dummy_labels)
+    monkeypatch.setattr(main, "drift_monitor", DummyDriftMonitor())
 
     return TestClient(main.app)
 
@@ -107,3 +161,17 @@ def test_predict_ok(client):
     # Temporary visibility for debugging
     print({"prediction": body.get("prediction")})
     assert body.get("prediction") == "Generic"
+
+
+def test_drift_assess_ok(client):
+    payload = {
+        "flows": [_sample_payload(), _sample_payload()],
+        "top_n": 5,
+        "store_history": False,
+    }
+    resp = client.post("/drift/assess", json=payload)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["overall_severity"] == "moderate"
+    assert body["alert"] is True
+    assert body["top_features"][0]["feature"] == "service"

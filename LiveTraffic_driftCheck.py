@@ -1,21 +1,32 @@
 """Capture live traffic, build flow-based records, and align with UNSW-NB15 schema.
 
 Run with admin rights so Scapy can sniff. Example:
-	python LiveTraffic_driftCheck.py --iface Ethernet --seconds 60 --output live_flows.csv --predict
+	python LiveTraffic_driftCheck.py --iface Ethernet --seconds 60 --output live_flows.csv --predict --drift
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import joblib
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scapy.all import IP, TCP, UDP, Raw, sniff
+
+from monitoring import drift as drift_monitoring
+
+try:
+	from scapy.all import IP, TCP, UDP, Raw, sniff
+except ModuleNotFoundError:
+	IP = TCP = UDP = Raw = sniff = None
 
 # Columns expected by the trained pipeline (from preprocessing_pipeline_full.joblib)
 TARGET_COLUMNS: List[str] = [
@@ -68,6 +79,13 @@ TARGET_COLUMNS: List[str] = [
 	"ct_dst_src_ltm",
 ]
 
+DRIFT_CATEGORICAL_COLUMNS: List[str] = ["proto", "state", "service"]
+
+DEFAULT_BASELINE_PATH = drift_monitoring.DEFAULT_BASELINE_PATH
+DEFAULT_PIPELINE_PATH = drift_monitoring.DEFAULT_PIPELINE_PATH
+DEFAULT_MODEL_PATH = drift_monitoring.DEFAULT_MODEL_PATH
+DEFAULT_HISTORY_PATH = drift_monitoring.DEFAULT_ENGINEERED_DRIFT_HISTORY_PATH
+
 # Minimal port-to-service mapping to approximate UNSW service labels
 PORT_SERVICE_MAP = {
 	20: "ftp-data",
@@ -100,7 +118,7 @@ def _service_from_ports(port: int, proto: str) -> str:
 	return "other"
 
 
-def _state_from_flags(pkt: TCP) -> str:
+def _state_from_flags(pkt) -> str:
 	flags = pkt.flags
 	if flags & 0x04:
 		return "RST"
@@ -313,7 +331,142 @@ def _build_flow_features(flows: Dict[Tuple[str, int, str, int, str], FlowStats])
 	return df
 
 
+def _load_model_blob(model_path: Path):
+	blob = joblib.load(model_path)
+	if isinstance(blob, dict) and "model" in blob:
+		return blob["model"]
+	return blob
+
+
+def _clean_series(series: pd.Series) -> pd.Series:
+	values = pd.to_numeric(series, errors="coerce")
+	values = values.replace([np.inf, -np.inf], np.nan).dropna()
+	return values.astype(float)
+
+
+def _psi_from_numeric(expected: pd.Series, actual: pd.Series, bins: int = 10) -> float:
+	expected = _clean_series(expected)
+	actual = _clean_series(actual)
+	if expected.empty or actual.empty:
+		return 0.0
+	if expected.nunique(dropna=True) <= 1:
+		return 0.0 if actual.nunique(dropna=True) <= 1 else 1.0
+
+	quantiles = np.unique(np.quantile(expected.to_numpy(), np.linspace(0, 1, bins + 1)))
+	if len(quantiles) < 2:
+		return 0.0
+
+	if len(quantiles) == 2:
+		quantiles = np.array([quantiles[0], quantiles[1]])
+
+	expected_bins = pd.cut(expected, bins=quantiles, include_lowest=True, duplicates="drop")
+	actual_bins = pd.cut(actual, bins=quantiles, include_lowest=True, duplicates="drop")
+	expected_counts = expected_bins.value_counts(normalize=True, sort=False)
+	actual_counts = actual_bins.value_counts(normalize=True, sort=False)
+	all_bins = expected_counts.index.union(actual_counts.index)
+	expected_counts = expected_counts.reindex(all_bins, fill_value=0.0)
+	actual_counts = actual_counts.reindex(all_bins, fill_value=0.0)
+
+	epsilon = 1e-6
+	psi = ((actual_counts + epsilon) - (expected_counts + epsilon)) * np.log((actual_counts + epsilon) / (expected_counts + epsilon))
+	return float(psi.sum())
+
+
+def _psi_from_categorical(expected: pd.Series, actual: pd.Series) -> float:
+	expected = expected.astype(str).replace({"nan": np.nan}).dropna()
+	actual = actual.astype(str).replace({"nan": np.nan}).dropna()
+	if expected.empty or actual.empty:
+		return 0.0
+
+	categories = sorted(set(expected.unique()).union(set(actual.unique())))
+	if not categories:
+		return 0.0
+
+	expected_counts = expected.value_counts(normalize=True).reindex(categories, fill_value=0.0)
+	actual_counts = actual.value_counts(normalize=True).reindex(categories, fill_value=0.0)
+	epsilon = 1e-6
+	psi = ((actual_counts + epsilon) - (expected_counts + epsilon)) * np.log((actual_counts + epsilon) / (expected_counts + epsilon))
+	return float(psi.sum())
+
+
+def compute_drift_report(
+	live_df: pd.DataFrame,
+	baseline_df: pd.DataFrame,
+	bins: int = 10,
+) -> pd.DataFrame:
+	assessment = drift_monitoring.build_drift_summary(live_df, baseline_df)
+	rows = [result.to_dict() for result in assessment.features]
+	for row in rows:
+		row.setdefault("psi", row.get("psi", 0.0))
+		row["status"] = "stable" if row.get("severity", "stable") == "stable" else "drift"
+		row.setdefault("mean_delta", None)
+	return pd.DataFrame(rows).sort_values("risk_score", ascending=False).reset_index(drop=True)
+
+
+def save_drift_plot(report: pd.DataFrame, output_path: Path, top_n: int = 12) -> None:
+	if report.empty:
+		return
+
+	features: List[drift_monitoring.FeatureDriftResult] = []
+	for row in report.to_dict(orient="records"):
+		features.append(
+			drift_monitoring.FeatureDriftResult(
+				feature=str(row.get("feature", "unknown")),
+				feature_type=str(row.get("feature_type", "numeric")),
+				drift_score=float(row.get("drift_score", row.get("risk_score", 0.0)) or 0.0),
+				risk_score=float(row.get("risk_score", row.get("drift_score", 0.0)) or 0.0),
+				severity=str(row.get("severity", row.get("status", "stable"))),
+				importance=float(row.get("importance", 0.0) or 0.0),
+				ks_stat=float(row.get("ks_stat", 0.0) or 0.0),
+				ks_pvalue=float(row.get("ks_pvalue", 1.0) or 1.0),
+				js_divergence=float(row.get("js_divergence", 0.0) or 0.0),
+				chi2_stat=float(row.get("chi2_stat", 0.0) or 0.0),
+				chi2_pvalue=float(row.get("chi2_pvalue", 1.0) or 1.0),
+				psi=float(row.get("psi", 0.0) or 0.0),
+				unseen_rate=float(row.get("unseen_rate", 0.0) or 0.0),
+				baseline_mean=row.get("baseline_mean"),
+				live_mean=row.get("live_mean"),
+			)
+		)
+	assessment = drift_monitoring.DriftAssessment(
+		timestamp=drift_monitoring._utc_now(),
+		batch_size=int(report.shape[0]),
+		feature_count=int(report.shape[0]),
+		drift_count=int((report.get("severity", report.get("status")) != "stable").sum()) if not report.empty else 0,
+		severe_count=int((report.get("severity", report.get("status")) == "severe").sum()) if not report.empty else 0,
+		drift_fraction=float((report.get("severity", report.get("status")) != "stable").mean()) if not report.empty else 0.0,
+		severe_fraction=float((report.get("severity", report.get("status")) == "severe").mean()) if not report.empty else 0.0,
+		overall_score=float(report.get("risk_score", pd.Series([0.0])).mean()),
+		overall_severity=str(report.get("severity", pd.Series(["stable"])).iloc[0]),
+		alert=bool((report.get("severity", report.get("status")) == "severe").any()),
+		alert_level="warning",
+		alert_reason="compatibility plot generation",
+		thresholds={"low": 0.2, "moderate": 0.4, "severe": 0.6},
+		trend="stable",
+		trend_delta=0.0,
+		trend_slope=0.0,
+		history_count=0,
+		features=features,
+	)
+	drift_monitoring.save_drift_plot(assessment, output_path, top_n=top_n)
+
+
+def run_drift_check(df: pd.DataFrame, baseline_path: Path, report_path: Path, figure_path: Path, bins: int = 10) -> pd.DataFrame:
+	baseline = pd.read_csv(baseline_path, low_memory=False)
+	assessment = drift_monitoring.build_drift_summary(df, baseline)
+	report = pd.DataFrame([result.to_dict() for result in assessment.features]).sort_values("risk_score", ascending=False).reset_index(drop=True)
+	if not report.empty:
+		report["status"] = np.where(report["severity"] == "stable", "stable", "drift")
+	report_path.parent.mkdir(parents=True, exist_ok=True)
+	report.to_csv(report_path, index=False)
+	drift_monitoring.save_drift_plot(assessment, figure_path)
+	return report
+
+
 def capture_flows(iface: Optional[str], seconds: int, max_packets: int) -> pd.DataFrame:
+	if sniff is None or IP is None or TCP is None or UDP is None or Raw is None:
+		raise RuntimeError("Scapy is required for live packet capture. Install the project dependencies before using capture mode.")
+
 	flows: Dict[Tuple[str, int, str, int, str], FlowStats] = {}
 
 	def _handle(pkt) -> None:
@@ -353,11 +506,7 @@ def capture_flows(iface: Optional[str], seconds: int, max_packets: int) -> pd.Da
 
 def run_prediction(df: pd.DataFrame, pipeline_path: Path, model_path: Path) -> pd.DataFrame:
 	pipeline = joblib.load(pipeline_path)
-	model_blob = joblib.load(model_path)
-	if isinstance(model_blob, dict) and "model" in model_blob:
-		model = model_blob["model"]
-	else:
-		model = model_blob
+	model = _load_model_blob(model_path)
 
 	X_proc = pipeline.transform(df)
 	preds = model.predict(X_proc)
@@ -374,14 +523,44 @@ def main() -> None:
 	parser.add_argument("--output", type=Path, default=Path("processed_data_full/live_flows.csv"))
 	parser.add_argument("--predict", action="store_true", help="Run pipeline+model prediction")
 	parser.add_argument(
+		"--drift",
+		action=argparse.BooleanOptionalAction,
+		default=True,
+		help="Run drift detection against the saved training distribution",
+	)
+	parser.add_argument(
 		"--pipeline-path",
 		type=Path,
-		default=Path("processed_data_full/preprocessing_pipeline_full.joblib"),
+		default=DEFAULT_PIPELINE_PATH,
 	)
 	parser.add_argument(
 		"--model-path",
 		type=Path,
-		default=Path("models/saved/random_forest_full_pipeline.joblib"),
+		default=DEFAULT_MODEL_PATH,
+	)
+	parser.add_argument(
+		"--baseline-path",
+		type=Path,
+		default=DEFAULT_BASELINE_PATH,
+		help="Baseline raw training split used for live drift comparison",
+	)
+	parser.add_argument(
+		"--drift-report",
+		type=Path,
+		default=Path("processed_data_full/live_drift_report.csv"),
+		help="CSV file containing per-feature drift scores",
+	)
+	parser.add_argument(
+		"--drift-figure",
+		type=Path,
+		default=Path("processed_data_full/live_drift_report.png"),
+		help="PNG summary of the drift scores",
+	)
+	parser.add_argument(
+		"--dashboard-json",
+		type=Path,
+		default=Path("processed_data_full/live_drift_dashboard.json"),
+		help="Dashboard-ready JSON summary",
 	)
 
 	args = parser.parse_args()
@@ -402,6 +581,36 @@ def main() -> None:
 		df_pred.to_csv(pred_path, index=False)
 		counts = df_pred["prediction"].value_counts().to_dict()
 		print(f"Predictions saved to {pred_path}; class counts: {counts}")
+
+	if args.drift:
+		if not args.baseline_path.exists():
+			print(f"Drift check skipped: baseline not found at {args.baseline_path}")
+		else:
+			model_blob = joblib.load(args.model_path)
+			model_for_drift = model_blob["model"] if isinstance(model_blob, dict) and "model" in model_blob else model_blob
+			pipeline_for_drift = joblib.load(args.pipeline_path)
+			assessment = drift_monitoring.build_model_input_drift_summary(
+				live_df=df,
+				baseline_df=args.baseline_path,
+				pipeline=pipeline_for_drift,
+				model=model_for_drift,
+				history_path=DEFAULT_HISTORY_PATH,
+				top_n=12,
+				baseline_sample_size=2500,
+				store_history=True,
+			)
+			report = pd.DataFrame([result.to_dict() for result in assessment.features]).sort_values("risk_score", ascending=False).reset_index(drop=True)
+			report.to_csv(args.drift_report, index=False)
+			drift_monitoring.save_drift_plot(assessment, args.drift_figure)
+			args.dashboard_json.parent.mkdir(parents=True, exist_ok=True)
+			args.dashboard_json.write_text(json.dumps(assessment.dashboard, indent=2), encoding="utf-8")
+			drift_count = assessment.drift_count
+			watch_count = int(sum(result.severity == "moderate" for result in assessment.features))
+			overall_psi = assessment.overall_score
+			print(
+				f"Drift report saved to {args.drift_report}; figure saved to {args.drift_figure}; "
+				f"overall score={overall_psi:.4f}, drift features={drift_count}, watch features={watch_count}, dashboard={args.dashboard_json}"
+			)
 
 
 if __name__ == "__main__":
