@@ -1,13 +1,16 @@
+import json
 import math
+import os
 import time
 import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 import pandas as pd
 
@@ -18,6 +21,8 @@ from api.schemas import (
 )
 from api.model_loader import class_labels, model, pipeline
 from monitoring import drift as drift_monitoring
+from simulator import TrafficSimulator
+from domain_watcher import DomainWatcher
 from api.stress_handling import (
     StressHandlingMiddleware,
     StressHandler,
@@ -109,6 +114,11 @@ drift_monitor = drift_monitoring.load_default_monitor(
     history_path=DEFAULT_DRIFT_HISTORY_PATH,
 )
 
+_simulator = TrafficSimulator(buffer_size=200)
+_watcher   = DomainWatcher(trigger_fn=_simulator.trigger)
+_DISABLE_LOCAL_WATCHER = os.environ.get("IDS_DISABLE_LOCAL_WATCHER", "").lower() in {"1", "true", "yes"}
+
+
 def _run_ml_batch(data_list: List[Dict]) -> List[str]:
     """Runs the whole batch through the ML model synchronously."""
     df = pd.DataFrame(data_list)
@@ -156,9 +166,15 @@ async def predict_task():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manages the startup and shutdown of the background batch task."""
+    _simulator.start()
+    if not _DISABLE_LOCAL_WATCHER:
+        _watcher.start()
     task = asyncio.create_task(predict_task())
     yield
     task.cancel()
+    _simulator.stop()
+    if not _DISABLE_LOCAL_WATCHER:
+        _watcher.stop()
 
 
 app = FastAPI(
@@ -176,11 +192,25 @@ app = FastAPI(
     },
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Add stress handling middleware
 app.add_middleware(
     StressHandlingMiddleware,
     handler=stress_handler,
-    exclude_paths=["/", "/health", "/metrics", "/drift/assess", "/drift/latest", "/docs", "/openapi.json"],
+    exclude_paths=[
+        "/", "/health", "/metrics",
+        "/drift/assess", "/drift/latest",
+        "/monitor", "/monitor/live",
+        "/predict-batch",
+        "/docs", "/openapi.json",
+    ],
 )
 
 
@@ -440,6 +470,60 @@ async def predict(data: NetworkInput):
 
 
 @app.post(
+    "/predict-batch",
+    tags=["Prediction"],
+    summary="Bulk predict from a CSV upload",
+    description="Upload a CSV file of network flows. Returns one prediction per row.",
+)
+async def predict_batch(file: UploadFile = File(...)):
+    if not file.filename or not file.filename.lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Please upload a .csv file")
+
+    try:
+        raw = await file.read()
+        from io import BytesIO
+        df = pd.read_csv(BytesIO(raw), low_memory=False)
+        if df.empty:
+            raise HTTPException(status_code=400, detail="CSV is empty")
+
+        drop_cols = [c for c in ["target", "attack_cat", "label"] if c in df.columns]
+        feat_df   = df.drop(columns=drop_cols, errors="ignore").fillna(0)
+
+        X_proc = await asyncio.to_thread(pipeline.transform, feat_df)
+        X_np   = X_proc.to_numpy() if hasattr(X_proc, "to_numpy") else np.asarray(X_proc)
+
+        raw_preds = await asyncio.to_thread(model.predict, X_np)
+        labels = [_label_from_raw(p) for p in raw_preds]
+
+        from collections import Counter
+        counts = dict(Counter(labels))
+
+        rows = []
+        for i, lbl in enumerate(labels):
+            row = df.iloc[i].to_dict()
+            row["prediction"] = lbl
+            rows.append(row)
+
+        return {
+            "filename":     file.filename,
+            "row_count":    len(labels),
+            "predictions":  labels,
+            "class_counts": counts,
+            "rows":         rows,
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Batch prediction failed: {exc}")
+
+
+def _label_from_raw(raw_pred) -> str:
+    if class_labels and int(raw_pred) < len(class_labels):
+        return class_labels[int(raw_pred)]
+    return str(raw_pred)
+
+
+@app.post(
     "/drift/assess",
     response_model=DriftAssessmentResponse,
     tags=["Monitoring"],
@@ -470,3 +554,96 @@ def latest_drift():
     if not last:
         raise HTTPException(status_code=404, detail="No drift history has been recorded yet")
     return last
+
+
+@app.get(
+    "/monitor",
+    tags=["Monitoring"],
+    summary="Snapshot — last N classified flows",
+    description="One-shot JSON snapshot of the last *n* flows (default 50). Use /monitor/live for a continuous stream.",
+)
+def monitor(n: int = 50):
+    n = max(1, min(n, 200))
+    return {
+        "flows": _simulator.get_recent(n),
+        "stats": _simulator.get_stats(),
+    }
+
+
+@app.get(
+    "/monitor/live",
+    tags=["Monitoring"],
+    summary="Live SSE stream — continuous traffic feed",
+    description=(
+        "Server-Sent Events stream. Keeps the connection open and pushes a JSON event "
+        "every second containing only **new** flows since the last push, plus current stats.\n\n"
+        "Connect with: `curl -N http://localhost:8000/monitor/live`\n\n"
+        "Or open in a browser — each `data:` line is a JSON object with `flows` and `stats`.\n\n"
+        "Shows **Normal** traffic continuously. Automatically injects attack-class flows "
+        "when any of the following domains is resolved in the browser:\n\n"
+        "- **testphp.vulnweb.com** → Exploits (45 s)\n"
+        "- **ddostest.me** → DoS (30 s)\n"
+        "- **scanme.nmap.org** → Reconnaissance (40 s)\n"
+        "- **hackthissite.org** → Generic (35 s)\n"
+        "- **www.webscantest.com** → Fuzzers (30 s)"
+    ),
+)
+async def monitor_live(request: Request):
+    async def event_stream():
+        # Seed: send the last 20 flows immediately so the client has something to show
+        last_ts: float = 0.0
+        seed = _simulator.get_recent(20)
+        if seed:
+            last_ts = seed[-1]["ts"]
+            yield f"data: {json.dumps({'flows': seed, 'stats': _simulator.get_stats()})}\n\n"
+
+        while True:
+            if await request.is_disconnected():
+                break
+            new_flows = _simulator.get_since(last_ts)
+            if new_flows:
+                last_ts = new_flows[-1]["ts"]
+            # Always send heartbeat (even empty flows list keeps stats current)
+            payload = json.dumps({"flows": new_flows, "stats": _simulator.get_stats()})
+            yield f"data: {payload}\n\n"
+            await asyncio.sleep(1.0)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control":    "no-cache",
+            "X-Accel-Buffering": "no",   # disable nginx buffering if proxied
+            "Connection":       "keep-alive",
+        },
+    )
+
+
+# ── Remote trigger (used by local_agent.py when backend is in the cloud) ──────
+
+_TRIGGER_TOKEN = os.environ.get("IDS_TRIGGER_TOKEN", "").strip()
+
+
+@app.post(
+    "/trigger/{scenario}",
+    tags=["Simulator"],
+    summary="Force-trigger a scenario (used by local agent)",
+    description=(
+        "Switch the simulator into the named attack scenario for its configured duration, "
+        "or pass `normal` to revert immediately. If env var `IDS_TRIGGER_TOKEN` is set, "
+        "requests must include `Authorization: Bearer <token>`."
+    ),
+)
+def trigger_scenario(scenario: str, request: Request):
+    if _TRIGGER_TOKEN:
+        auth = request.headers.get("authorization", "")
+        if not auth.startswith("Bearer ") or auth[7:].strip() != _TRIGGER_TOKEN:
+            raise HTTPException(status_code=401, detail="Invalid or missing token")
+    scenario = scenario.lower().strip()
+    if scenario == "normal":
+        _simulator.reset_normal()
+        return {"message": "reset to normal"}
+    result = _simulator.trigger(scenario)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result

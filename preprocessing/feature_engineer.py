@@ -150,8 +150,11 @@ class FeatureEngineer:
         # Capping (Winsorization) chosen over removal to preserves all samples (important for imbalanced data)
         X = X.copy()
         for col, (lower, upper) in self.outlier_bounds_.items():
-            if col in X.columns:
-                X[col] = X[col].clip(lower=lower, upper=upper)
+            if col not in X.columns:
+                continue
+            if not pd.api.types.is_numeric_dtype(X[col]):
+                X[col] = pd.to_numeric(X[col], errors='coerce').fillna(0)
+            X[col] = X[col].clip(lower=lower, upper=upper)
         return X
     
     def get_feature_importance_report(self) -> pd.DataFrame:

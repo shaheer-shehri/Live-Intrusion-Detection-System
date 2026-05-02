@@ -1,20 +1,20 @@
 {
   "Random Forest": {
     "model_name": "Random Forest",
-    "accuracy": 0.9387102135793235,
-    "f1_weighted": 0.9394972617258451,
-    "f1_macro": 0.8790417671858606,
-    "precision_macro": 0.8733580280732287,
-    "recall_macro": 0.886529342951643,
+    "accuracy": 0.9340147926535362,
+    "f1_weighted": 0.9348846069747305,
+    "f1_macro": 0.8701157554245413,
+    "precision_macro": 0.8649101389099783,
+    "recall_macro": 0.877345076308921,
     "num_classes": 6
   },
   "XGBoost": {
     "model_name": "XGBoost",
-    "accuracy": 0.9433640821075376,
-    "f1_weighted": 0.9435418271515728,
-    "f1_macro": 0.8830497357630471,
-    "precision_macro": 0.8809605120896021,
-    "recall_macro": 0.885468142455986,
+    "accuracy": 0.939375051940497,
+    "f1_weighted": 0.9393357896984702,
+    "f1_macro": 0.8739168290817146,
+    "precision_macro": 0.8726442043333651,
+    "recall_macro": 0.8756014638294252,
     "num_classes": 6
   }
 }

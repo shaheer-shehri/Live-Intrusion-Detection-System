@@ -1,13 +1,13 @@
 {
   "model_name": "Random Forest",
   "overall_metrics": {
-    "accuracy": 0.9387102135793235,
-    "precision_weighted": 0.9412012180146384,
-    "recall_weighted": 0.9387102135793235,
-    "f1_score_weighted": 0.9394972617258451,
-    "precision_macro": 0.8733580280732287,
-    "recall_macro": 0.886529342951643,
-    "f1_score_macro": 0.8790417671858606
+    "accuracy": 0.9340147926535362,
+    "precision_weighted": 0.9368433097015515,
+    "recall_weighted": 0.9340147926535362,
+    "f1_score_weighted": 0.9348846069747305,
+    "precision_macro": 0.8649101389099783,
+    "recall_macro": 0.877345076308921,
+    "f1_score_macro": 0.8701157554245413
   },
   "class_labels": [
     "Normal",
@@ -26,37 +26,37 @@
       "quality": "GOOD"
     },
     "Generic": {
-      "precision": 0.995136186770428,
-      "recall": 0.9454713493530499,
-      "f1_score": 0.9696682464454977,
+      "precision": 0.9938070404172099,
+      "recall": 0.9393099199014171,
+      "f1_score": 0.9657903072537218,
       "support": 3246,
       "quality": "GOOD"
     },
     "Fuzzers": {
-      "precision": 0.9483793517406963,
-      "recall": 0.9833208862335076,
-      "f1_score": 0.9655340992422391,
+      "precision": 0.9316725978647686,
+      "recall": 0.977595220313667,
+      "f1_score": 0.9540816326530612,
       "support": 4017,
       "quality": "GOOD"
     },
     "Exploits": {
-      "precision": 0.8585657370517928,
-      "recall": 0.8169509883563498,
-      "f1_score": 0.8372415706951575,
+      "precision": 0.8577586206896551,
+      "recall": 0.8082859463850528,
+      "f1_score": 0.8322877457130907,
       "support": 3693,
       "quality": "OK"
     },
     "Reconnaissance": {
-      "precision": 0.890894819466248,
-      "recall": 0.9602368866328257,
-      "f1_score": 0.9242671009771987,
+      "precision": 0.8897203623473808,
+      "recall": 0.9555837563451777,
+      "f1_score": 0.9214766469508464,
       "support": 2364,
       "quality": "GOOD"
     },
     "DoS": {
-      "precision": 0.5474806201550387,
-      "recall": 0.6256921373200443,
-      "f1_score": 0.5839793281653747,
+      "precision": 0.5168107588856868,
+      "recall": 0.5957918050941307,
+      "f1_score": 0.5534979423868313,
       "support": 903,
       "quality": "WEAK"
     }
