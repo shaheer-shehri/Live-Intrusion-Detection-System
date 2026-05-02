@@ -12,6 +12,8 @@ Pre-processes the full test set once at startup so per-flow inference is fast an
 from __future__ import annotations
 
 import io
+import pathlib
+import platform
 import sys
 import threading
 import time
@@ -23,6 +25,10 @@ from typing import Any, Dict, List, Optional
 import joblib
 import numpy as np
 import pandas as pd
+
+# Fix WindowsPath on Linux
+if platform.system() != 'Windows':
+    pathlib.WindowsPath = pathlib.PosixPath
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 TEST_DATA_PATH = Path("processed_data_mc/data_splits/X_test_raw.csv")
@@ -149,6 +155,18 @@ class TrafficSimulator:
 
         self._running          = False
         self._thread: Optional[threading.Thread] = None
+        self._disabled         = False
+        self._disabled_reason  = ""
+
+        # Initialize data structures with safe defaults
+        self._model = None
+        self._class_labels: List[str] = []
+        self._normal_X: Optional[np.ndarray] = None
+        self._attack_X: Dict[str, np.ndarray] = {}
+        self._normal_meta: Optional[pd.DataFrame] = None
+        self._attack_meta: Dict[str, pd.DataFrame] = {}
+        self._normal_idx = 0
+        self._attack_idx: Dict[str, int] = defaultdict(int)
 
         self._load_and_preprocess()
 
@@ -156,15 +174,33 @@ class TrafficSimulator:
 
     def _load_and_preprocess(self) -> None:
         """Load test CSV, split by class, pre-transform with pipeline (once)."""
-        pipeline = joblib.load(PIPELINE_PATH)
-        blob     = joblib.load(MODEL_PATH)
-        self._model        = blob["model"] if isinstance(blob, dict) else blob
-        self._class_labels: List[str] = blob.get("class_labels", []) if isinstance(blob, dict) else []
+        try:
+            pipeline = joblib.load(PIPELINE_PATH)
+        except Exception as exc:
+            self._disabled = True
+            self._disabled_reason = f"pipeline load failed: {exc}"
+            pipeline = None
+
+        try:
+            blob = joblib.load(MODEL_PATH)
+            self._model = blob["model"] if isinstance(blob, dict) else blob
+            self._class_labels = blob.get("class_labels", []) if isinstance(blob, dict) else []
+        except Exception as exc:
+            self._disabled = True
+            if not self._disabled_reason:
+                self._disabled_reason = f"model load failed: {exc}"
+            self._model = None
+            self._class_labels = []
 
         df = pd.read_csv(TEST_DATA_PATH, low_memory=False)
         target_col = next((c for c in ["target", "label"] if c in df.columns), None)
         drop_cols  = [c for c in ["target", "attack_cat", "label"] if c in df.columns]
         feat_cols  = [c for c in df.columns if c not in drop_cols]
+
+        if pipeline is None:
+            # Keep the API alive even when the serialized preprocessing pipeline
+            # is not compatible with the runtime Python environment.
+            return
 
         # Pre-transform everything silently
         old_stdout, sys.stdout = sys.stdout, io.StringIO()
@@ -201,6 +237,12 @@ class TrafficSimulator:
 
     def trigger(self, scenario_key: str) -> Dict[str, Any]:
         """Switch to an attack scenario. Returns scenario info dict."""
+        if self._disabled:
+            return {
+                "error": "Simulator is disabled because saved artifacts could not be loaded.",
+                "details": self._disabled_reason,
+            }
+
         scenario_key = scenario_key.lower().strip()
         if scenario_key not in SCENARIOS:
             return {"error": f"Unknown scenario '{scenario_key}'. Valid: {list(SCENARIOS)}"}
@@ -261,6 +303,10 @@ class TrafficSimulator:
 
     def _run_loop(self) -> None:
         while self._running:
+            if self._disabled:
+                time.sleep(1)
+                continue
+
             try:
                 X_row, meta_row, is_attack, scenario_key = self._next_row()
 
@@ -312,6 +358,8 @@ class TrafficSimulator:
     # ── lifecycle ─────────────────────────────────────────────────────────────
 
     def start(self) -> None:
+        if self._disabled:
+            return
         self._running = True
         self._thread  = threading.Thread(target=self._run_loop, daemon=True, name="simulator")
         self._thread.start()

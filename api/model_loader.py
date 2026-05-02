@@ -1,5 +1,11 @@
+import pathlib
+import platform
 from pathlib import Path
 from typing import Optional, Tuple
+
+# Fix WindowsPath on Linux — must be before any joblib.load calls
+if platform.system() != 'Windows':
+    pathlib.WindowsPath = pathlib.PosixPath
 
 import joblib
 
@@ -15,7 +21,7 @@ class _FallbackPipeline:
 def load_model() -> Tuple[object, Optional[list]]:
     try:
         blob = joblib.load(MODEL_PATH)
-    except ModuleNotFoundError:
+    except Exception:
         return None, None
     if isinstance(blob, dict) and "model" in blob:
         return blob["model"], blob.get("class_labels")
@@ -25,7 +31,8 @@ def load_model() -> Tuple[object, Optional[list]]:
 def load_pipeline():
     try:
         return joblib.load(PIPELINE_PATH)
-    except ModuleNotFoundError:
+    except Exception:
+        # Fallback: occurs when artifacts have OS-specific paths or incompatible imports
         return _FallbackPipeline()
 
 

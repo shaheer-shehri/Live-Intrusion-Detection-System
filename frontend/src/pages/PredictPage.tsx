@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Zap, Send, AlertCircle } from 'lucide-react';
+import { Zap, AlertCircle } from 'lucide-react';
 import { api, NetworkFlow } from '../services/api';
 
 const initialFlow: Partial<NetworkFlow> = {

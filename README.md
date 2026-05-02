@@ -301,3 +301,115 @@ locust -f stress_tests/locustfile.py --host=http://localhost:8000 --users 10 --s
 
 #### Generate HTML report
 locust -f stress_tests/locustfile.py --host=http://localhost:8000 --users 10 --spawn-rate 1 --run-time 60s --headless --html=report.html
+
+## Full Project Structure
+
+```text
+Live-Intrusion-Detection-System/
+├── analyzer.ipynb
+├── API_DOCUMENTATION.md
+├── DEPLOYMENT.md
+├── docker-compose.yml
+├── Dockerfile
+├── domain_watcher.py
+├── LICENSE
+├── LiveTraffic_driftCheck.py
+├── local_agent.py
+├── README.md
+├── requirements.txt
+├── run.py
+├── simulator.py
+├── analysis_before_Pre-processing/
+│   ├── analyzer_report.json
+│   └── figures/
+├── api/
+│   ├── main.py
+│   ├── model_loader.py
+│   ├── schemas.py
+│   └── stress_handling.py
+├── data/
+│   ├── NUSW-NB15_features.csv
+│   ├── UNSW-NB15_1.csv
+│   ├── UNSW-NB15_2.csv
+│   ├── UNSW-NB15_3.csv
+│   └── UNSW-NB15_4.csv
+├── frontend/
+│   ├── Dockerfile
+│   ├── index.html
+│   ├── nginx.conf
+│   ├── package.json
+│   ├── postcss.config.js
+│   ├── README.md
+│   ├── tailwind.config.js
+│   ├── tsconfig.json
+│   ├── tsconfig.node.json
+│   ├── vercel.json
+│   ├── vite.config.ts
+│   └── src/
+│       ├── App.tsx
+│       ├── index.css
+│       ├── main.tsx
+│       ├── components/
+│       │   ├── Navbar.tsx
+│       │   └── Sidebar.tsx
+│       ├── pages/
+│       │   ├── BatchUploadPage.tsx
+│       │   ├── Dashboard.tsx
+│       │   ├── LiveMonitorPage.tsx
+│       │   ├── MetricsPage.tsx
+│       │   └── PredictPage.tsx
+│       └── services/
+│           └── api.ts
+├── models/
+│   ├── __init__.py
+│   ├── evaluation.py
+│   ├── trainer.py
+│   └── saved/
+│       ├── improved_random_forest_mc.joblib
+│       └── improved_xgboost_mc.joblib
+├── monitoring/
+│   ├── __init__.py
+│   └── drift.py
+├── preprocessing/
+│   ├── __init__.py
+│   ├── build_attack_normal_subset.py
+│   ├── config.py
+│   ├── data_handler.py
+│   ├── data_loader.py
+│   ├── encoders.py
+│   ├── feature_engineer.py
+│   ├── label_adjustment.py
+│   ├── pipeline.py
+│   ├── scalers.py
+│   └── training_utils.py
+├── processed_data/
+├── processed_data_full/
+│   ├── drift_history.jsonl
+│   ├── live_drift_dashboard.json
+│   ├── live_drift_report.csv
+│   ├── live_flows_pred.csv
+│   ├── live_flows.csv
+│   ├── model_input_drift_history.jsonl
+│   └── live_drift_report.png
+├── processed_data_mc/
+│   ├── combined_eval_metrics.json
+│   ├── combined_preprocessing_pipeline.joblib
+│   ├── model_comparison.csv
+│   ├── random_forest_metrics.json
+│   ├── xgboost_metrics.json
+│   ├── data_splits/
+│   │   ├── split_metadata.joblib
+│   │   ├── X_test_preprocessed.csv
+│   │   ├── X_test_raw.csv
+│   │   ├── X_train_preprocessed.csv
+│   │   └── X_train_raw.csv
+│   └── figures/
+├── stress_tests/
+│   ├── __init__.py
+│   ├── locustfile.py
+│   └── test_stress_handling.py
+└── tests/
+    ├── test_api.py
+    ├── test_live_drift.py
+    └── test_pipeline.py
+```
