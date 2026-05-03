@@ -12,24 +12,37 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          lfs: true
 
-      - name: Sync to Hugging Face
+      - name: Upload to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git config --global user.email "github-actions@github.com"
-          git config --global user.name "github-actions"
+          pip install huggingface_hub
+          python - <<'EOF'
+          import os
+          from huggingface_hub import HfApi
 
-          git clone https://shaheershehri:$HF_TOKEN@huggingface.co/spaces/shaheershehri/AI_project_backend /tmp/hf-space
-
-          # Wipe HF repo content (keep .git)
-          cd /tmp/hf-space
-          git rm -rf . --quiet 2>/dev/null || true
-
-          # Copy from GitHub checkout (GITHUB_WORKSPACE is outside /tmp, no self-copy issue)
-          cp -r $GITHUB_WORKSPACE/. /tmp/hf-space/
-          rm -rf /tmp/hf-space/.github
-
-          git add -A
-          git diff --staged --quiet || git commit -m "Sync from GitHub: $GITHUB_SHA"
-          git push --force https://shaheershehri:$HF_TOKEN@huggingface.co/spaces/shaheershehri/AI_project_backend HEAD:main
+          api = HfApi()
+          api.upload_folder(
+              folder_path=".",
+              repo_id="shaheershehri/AI_project_backend",
+              repo_type="space",
+              token=os.environ["HF_TOKEN"],
+              ignore_patterns=[
+                  ".git",
+                  ".git/**",
+                  ".github",
+                  ".github/**",
+                  "**/__pycache__/**",
+                  "**/*.pyc",
+                  ".env",
+                  ".env.local",
+                  "frontend/**",
+                  "*.ai_venv/**",
+              ],
+          )
+          print("Upload complete!")
+          EOF
