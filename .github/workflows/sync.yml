@@ -25,14 +25,18 @@ jobs:
           # Clone the Hugging Face Space repo
           git clone https://sharjeel24:$HF_TOKEN@huggingface.co/spaces/sharjeel24/ids-backend hf-space
 
-          # Copy files (exclude git and github dirs)
-          rsync -av --exclude=".git" --exclude=".github" ./ hf-space/
-
+          # Sync files (rsync preserves directory structure and handles symlinks)
+          rsync -av --delete \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            --exclude='.pytest_cache' \
+            --exclude='venv' \
+            --exclude='node_modules' \
+            ./ hf-space/
+          
           cd hf-space
           git add .
-
-          # Commit (safe if no changes)
           git commit -m "Sync from GitHub" || echo "No changes to commit"
-
-          # Push to main branch (FIXED: was missing branch name)
           git push https://sharjeel24:$HF_TOKEN@huggingface.co/spaces/sharjeel24/ids-backend main
