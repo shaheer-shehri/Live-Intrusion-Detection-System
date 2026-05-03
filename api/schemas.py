@@ -12,41 +12,35 @@ class NetworkInput(BaseModel):
     sport: float
     dsport: float
 
-    # Core totals and timing
+    # Core totals and timing (sbytes, dbytes, stime, ltime removed - used for engineered features)
     dur: float
-    sbytes: float
-    dbytes: float
     sttl: float
     dttl: float
     sloss: float
-    dloss: float
     sload: float
     dload: float
     spkts: float
-    dpkts: float
     swin: float
-    dwin: float
-    stcpb: float
-    dtcpb: float
     smeansz: float
     dmeansz: float
     trans_depth: float
     res_bdy_len: float
     sjit: float
     djit: float
-    stime: float
-    ltime: float
     sintpkt: float
     dintpkt: float
     tcprtt: float
     synack: float
     ackdat: float
 
-    # Flags / binary indicators
+    # Engineered features (created during preprocessing)
+    duration: float
+    packet_rate: float
+    byte_ratio: float
+
+    # Flags / binary indicators (ct_flw_http_mthd, is_ftp_login removed - high missing values)
     is_sm_ips_ports: float
     ct_state_ttl: float
-    ct_flw_http_mthd: float
-    is_ftp_login: float
     ct_ftp_cmd: float
 
     # Count-based features

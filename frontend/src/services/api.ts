@@ -11,38 +11,33 @@ export interface NetworkFlow {
   sport: number;
   dsport: number;
   dur: number;
-  sbytes: number;
-  dbytes: number;
   sttl: number;
   dttl: number;
   sloss: number;
-  dloss: number;
   sload: number;
   dload: number;
   spkts: number;
-  dpkts: number;
   swin: number;
-  dwin: number;
-  stcpb: number;
-  dtcpb: number;
   smeansz: number;
   dmeansz: number;
   trans_depth: number;
   res_bdy_len: number;
   sjit: number;
   djit: number;
-  stime: number;
-  ltime: number;
   sintpkt: number;
   dintpkt: number;
   tcprtt: number;
   synack: number;
   ackdat: number;
+  // Engineered features
+  duration: number;
+  packet_rate: number;
+  byte_ratio: number;
+  // Flags / binary indicators
   is_sm_ips_ports: number;
   ct_state_ttl: number;
-  ct_flw_http_mthd: number;
-  is_ftp_login: number;
   ct_ftp_cmd: number;
+  // Count-based features
   ct_srv_src: number;
   ct_srv_dst: number;
   ct_dst_ltm: number;
