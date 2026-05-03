@@ -57,4 +57,4 @@ jobs:
           cd hf-space
           git add -A
           git commit -m "Sync from GitHub" || echo "No changes to commit"
-          git push origin main
+          git push https://sharjeel24:$HF_TOKEN@huggingface.co/spaces/sharjeel24/ids-backend HEAD:main
