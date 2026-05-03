@@ -11,33 +11,38 @@ const initialFlow: Partial<NetworkFlow> = {
   sport: 54321,
   dsport: 80,
   dur: 1.5,
+  sbytes: 1200,
+  dbytes: 3500,
   sttl: 64,
   dttl: 64,
   sloss: 0,
+  dloss: 0,
   sload: 800,
   dload: 2333,
   spkts: 8,
+  dpkts: 10,
   swin: 65535,
+  dwin: 65535,
+  stcpb: 1000,
+  dtcpb: 2000,
   smeansz: 150,
   dmeansz: 350,
   trans_depth: 1,
   res_bdy_len: 0,
   sjit: 0.001,
   djit: 0.002,
+  stime: 0,
+  ltime: 1.5,
   sintpkt: 0.19,
   dintpkt: 0.15,
   tcprtt: 0.01,
   synack: 0.005,
   ackdat: 0.005,
-  // Engineered features (created during preprocessing)
-  duration: 1.5,
-  packet_rate: 5.33,
-  byte_ratio: 0.34,
-  // Flags / binary indicators
   is_sm_ips_ports: 0,
   ct_state_ttl: 1,
+  ct_flw_http_mthd: 1,
+  is_ftp_login: 0,
   ct_ftp_cmd: 0,
-  // Count-based features
   ct_srv_src: 2,
   ct_srv_dst: 2,
   ct_dst_ltm: 5,
@@ -155,12 +160,11 @@ export default function PredictPage() {
                 step="0.1"
               />
               <InputField
-                label="Duration Engineered (s)"
-                name="duration"
+                label="Source Bytes"
+                name="sbytes"
                 type="number"
-                value={flow.duration || 0}
+                value={flow.sbytes || 0}
                 onChange={handleChange}
-                step="0.1"
               />
             </div>
 
