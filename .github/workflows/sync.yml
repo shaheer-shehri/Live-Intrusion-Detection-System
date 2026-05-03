@@ -16,53 +16,23 @@ jobs:
       - name: Sync to Hugging Face
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_USERNAME: sharjeel24
         run: |
           git config --global user.email "github-actions@github.com"
           git config --global user.name "github-actions"
-          git config --global credential.helper store
 
-          # Create credentials file
-          echo "https://$HF_USERNAME:$HF_TOKEN@huggingface.co" > ~/.git-credentials
+          # Clone HF repo using proper auth header method
+          git clone https://huggingface.co/spaces/sharjeel24/ids-backend hf-space
 
-          # Clone the Hugging Face Space repo
-          git clone https://$HF_USERNAME:$HF_TOKEN@huggingface.co/spaces/$HF_USERNAME/ids-backend hf-space 2>&1
-
-          # Copy files
-          cd ..
-          python3 << 'PYSCRIPT'
-          import shutil
-          from pathlib import Path
-
-          src = Path(".")
-          dst = Path("hf-space")
-          
-          ignore_patterns = [".git", ".github", "__pycache__", ".pytest_cache", "*.pyc", "venv", "node_modules", ".gitmodules"]
-          
-          def should_ignore(path):
-              path_str = str(path).lower()
-              return any(pattern.lower() in path_str for pattern in ignore_patterns)
-          
-          for item in src.iterdir():
-              if item.name == "hf-space" or should_ignore(item):
-                  continue
-              
-              dst_item = dst / item.name
-              try:
-                  if item.is_dir():
-                      if dst_item.exists():
-                          shutil.rmtree(dst_item)
-                      shutil.copytree(item, dst_item, ignore=lambda d, files: [f for f in files if should_ignore(Path(d) / f)])
-                  else:
-                      dst_item.parent.mkdir(parents=True, exist_ok=True)
-                      shutil.copy2(item, dst_item)
-              except Exception as e:
-                  print(f"Warning: Failed to copy {item}: {e}")
-          
-          print("File copy completed")
-          PYSCRIPT
+          # Sync files properly (safe + standard)
+          rsync -av --delete \
+            --exclude ".git" \
+            --exclude ".github" \
+            ./ hf-space/
 
           cd hf-space
+
           git add -A
-          git commit -m "Sync from GitHub [skip ci]" || echo "No changes to commit"
-          git push --force-with-lease origin main 2>&1 || git push -u origin main 2>&1
+          git commit -m "Sync from GitHub" || echo "No changes"
+
+          # IMPORTANT: use credential helper style push
+          git push https://huggingface.co/spaces/sharjeel24/ids-backend HEAD:main
