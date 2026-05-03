@@ -1,3 +1,13 @@
+---
+title: Live Intrusion Detection System
+emoji: 🔒
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_file: app.py
+pinned: false
+---
+
 ## Assignment: 3
 
 ## Shaheer Murtaza Shehri       512638
