@@ -3,53 +3,38 @@ from typing import Any, Dict, List
 from pydantic import BaseModel, Field
 
 class NetworkInput(BaseModel):
-    # Flow identifiers (IPs optional but accepted)
-    srcip: str | None = None
-    dstip: str | None = None
+    # String categorical fields
     proto: str
     service: str
     state: str
+    
+    # Numeric port and timing fields
     sport: float
     dsport: float
-
-    # Core totals and timing
     dur: float
-    sbytes: float
-    dbytes: float
     sttl: float
     dttl: float
     sloss: float
-    dloss: float
     sload: float
     dload: float
     spkts: float
-    dpkts: float
     swin: float
-    dwin: float
-    stcpb: float
-    dtcpb: float
     smeansz: float
     dmeansz: float
     trans_depth: float
     res_bdy_len: float
     sjit: float
     djit: float
-    stime: float
-    ltime: float
     sintpkt: float
     dintpkt: float
     tcprtt: float
     synack: float
     ackdat: float
-
-    # Flags / binary indicators
+    
+    # Binary and count-based features
     is_sm_ips_ports: float
     ct_state_ttl: float
-    ct_flw_http_mthd: float
-    is_ftp_login: float
     ct_ftp_cmd: float
-
-    # Count-based features
     ct_srv_src: float
     ct_srv_dst: float
     ct_dst_ltm: float

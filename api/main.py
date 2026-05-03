@@ -324,36 +324,25 @@ def reset_stress_handler():
 
 def _validate_input(data: NetworkInput) -> Dict[str, object]:
     ordered_fields: List[str] = [
-        "srcip",
-        "dstip",
         "proto",
         "service",
         "state",
         "sport",
         "dsport",
         "dur",
-        "sbytes",
-        "dbytes",
         "sttl",
         "dttl",
         "sloss",
-        "dloss",
         "sload",
         "dload",
         "spkts",
-        "dpkts",
         "swin",
-        "dwin",
-        "stcpb",
-        "dtcpb",
         "smeansz",
         "dmeansz",
         "trans_depth",
         "res_bdy_len",
         "sjit",
         "djit",
-        "stime",
-        "ltime",
         "sintpkt",
         "dintpkt",
         "tcprtt",
@@ -361,8 +350,6 @@ def _validate_input(data: NetworkInput) -> Dict[str, object]:
         "ackdat",
         "is_sm_ips_ports",
         "ct_state_ttl",
-        "ct_flw_http_mthd",
-        "is_ftp_login",
         "ct_ftp_cmd",
         "ct_srv_src",
         "ct_srv_dst",
@@ -377,28 +364,19 @@ def _validate_input(data: NetworkInput) -> Dict[str, object]:
         "sport",
         "dsport",
         "dur",
-        "sbytes",
-        "dbytes",
         "sttl",
         "dttl",
         "sloss",
-        "dloss",
         "sload",
         "dload",
         "spkts",
-        "dpkts",
         "swin",
-        "dwin",
-        "stcpb",
-        "dtcpb",
         "smeansz",
         "dmeansz",
         "trans_depth",
         "res_bdy_len",
         "sjit",
         "djit",
-        "stime",
-        "ltime",
         "sintpkt",
         "dintpkt",
         "tcprtt",
@@ -406,8 +384,6 @@ def _validate_input(data: NetworkInput) -> Dict[str, object]:
         "ackdat",
         "is_sm_ips_ports",
         "ct_state_ttl",
-        "ct_flw_http_mthd",
-        "is_ftp_login",
         "ct_ftp_cmd",
         "ct_srv_src",
         "ct_srv_dst",
@@ -421,12 +397,6 @@ def _validate_input(data: NetworkInput) -> Dict[str, object]:
     values: Dict[str, object] = {name: getattr(data, name) for name in ordered_fields}
 
     for name, value in values.items():
-        if name in {"srcip", "dstip"}:
-            # Optional; allow None/empty. Pipeline will drop these.
-            if value is None:
-                values[name] = ""
-            continue
-
         if value is None:
             raise HTTPException(status_code=400, detail=f"Missing field: {name}")
 

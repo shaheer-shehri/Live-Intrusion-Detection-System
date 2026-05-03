@@ -3,36 +3,25 @@ import { Zap, AlertCircle } from 'lucide-react';
 import { api, NetworkFlow } from '../services/api';
 
 const initialFlow: Partial<NetworkFlow> = {
-  srcip: '192.168.1.100',
-  dstip: '8.8.8.8',
   proto: 'tcp',
   service: 'http',
   state: 'est',
   sport: 54321,
   dsport: 80,
   dur: 1.5,
-  sbytes: 1200,
-  dbytes: 3500,
   sttl: 64,
   dttl: 64,
   sloss: 0,
-  dloss: 0,
   sload: 800,
   dload: 2333,
   spkts: 8,
-  dpkts: 10,
   swin: 65535,
-  dwin: 65535,
-  stcpb: 1000,
-  dtcpb: 2000,
   smeansz: 150,
   dmeansz: 350,
   trans_depth: 1,
   res_bdy_len: 0,
   sjit: 0.001,
   djit: 0.002,
-  stime: 0,
-  ltime: 1.5,
   sintpkt: 0.19,
   dintpkt: 0.15,
   tcprtt: 0.01,
@@ -40,8 +29,6 @@ const initialFlow: Partial<NetworkFlow> = {
   ackdat: 0.005,
   is_sm_ips_ports: 0,
   ct_state_ttl: 1,
-  ct_flw_http_mthd: 1,
-  is_ftp_login: 0,
   ct_ftp_cmd: 0,
   ct_srv_src: 2,
   ct_srv_dst: 2,
@@ -106,19 +93,7 @@ export default function PredictPage() {
         <div className="col-span-2 card p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              {/* Network Identifiers */}
-              <InputField
-                label="Source IP"
-                name="srcip"
-                value={flow.srcip || ''}
-                onChange={handleChange}
-              />
-              <InputField
-                label="Dest IP"
-                name="dstip"
-                value={flow.dstip || ''}
-                onChange={handleChange}
-              />
+              {/* Network Classification */}
               <SelectField
                 label="Protocol"
                 name="proto"
@@ -131,6 +106,13 @@ export default function PredictPage() {
                 name="service"
                 value={flow.service || ''}
                 options={['http', 'https', 'dns', 'ssh', 'ftp']}
+                onChange={handleChange}
+              />
+              <SelectField
+                label="State"
+                name="state"
+                value={flow.state || ''}
+                options={['est', 'con', 'fin', 'int', 'req', 'rst', 'clo', 'uro']}
                 onChange={handleChange}
               />
 
@@ -160,10 +142,17 @@ export default function PredictPage() {
                 step="0.1"
               />
               <InputField
-                label="Source Bytes"
-                name="sbytes"
+                label="TTL (Source)"
+                name="sttl"
                 type="number"
-                value={flow.sbytes || 0}
+                value={flow.sttl || 0}
+                onChange={handleChange}
+              />
+              <InputField
+                label="TTL (Dest)"
+                name="dttl"
+                type="number"
+                value={flow.dttl || 0}
                 onChange={handleChange}
               />
             </div>
