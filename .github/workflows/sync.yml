@@ -20,10 +20,10 @@ jobs:
           git config --global user.email "github-actions@github.com"
           git config --global user.name "github-actions"
 
-          # Clone HF repo using proper auth header method
-          git clone https://huggingface.co/spaces/sharjeel24/ids-backend hf-space
+          # Clone HF Space with token auth
+          git clone https://shaheershehri:$HF_TOKEN@huggingface.co/spaces/shaheershehri/AI_project_backend hf-space
 
-          # Sync files properly (safe + standard)
+          # Sync files (exclude git internals)
           rsync -av --delete \
             --exclude ".git" \
             --exclude ".github" \
@@ -34,5 +34,4 @@ jobs:
           git add -A
           git commit -m "Sync from GitHub" || echo "No changes"
 
-          # IMPORTANT: use credential helper style push
-          git push https://huggingface.co/spaces/sharjeel24/ids-backend HEAD:main
+          git push https://shaheershehri:$HF_TOKEN@huggingface.co/spaces/shaheershehri/AI_project_backend HEAD:main
