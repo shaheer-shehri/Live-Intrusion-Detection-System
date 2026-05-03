@@ -20,18 +20,18 @@ jobs:
           git config --global user.email "github-actions@github.com"
           git config --global user.name "github-actions"
 
-          # Clone HF Space with token auth
           git clone https://shaheershehri:$HF_TOKEN@huggingface.co/spaces/shaheershehri/AI_project_backend hf-space
 
-          # Sync files (exclude git internals)
-          rsync -av --delete \
-            --exclude ".git" \
-            --exclude ".github" \
-            ./ hf-space/
+          # Wipe HF repo content (keep .git), then copy fresh from GitHub checkout
+          cd hf-space
+          git rm -rf . --quiet 2>/dev/null || true
+          cd ..
+
+          cp -r $(pwd)/. hf-space/
+          rm -rf hf-space/.git-bak
+          rm -rf hf-space/.github
 
           cd hf-space
-
           git add -A
-          git commit -m "Sync from GitHub" || echo "No changes"
-
+          git diff --staged --quiet || git commit -m "Sync from GitHub $(git -C .. rev-parse --short HEAD 2>/dev/null || echo latest)"
           git push https://shaheershehri:$HF_TOKEN@huggingface.co/spaces/shaheershehri/AI_project_backend HEAD:main
