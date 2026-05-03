@@ -315,7 +315,6 @@ def get_stress_config():
         },
     }
 
-
 @app.post(
     "/stress/reset",
     response_model=MessageResponse,
@@ -572,15 +571,19 @@ async def monitor_live(request: Request):
             last_ts = seed[-1]["ts"]
             yield f"data: {json.dumps({'flows': seed, 'stats': _simulator.get_stats()})}\n\n"
 
+        tick = 0
         while True:
             if await request.is_disconnected():
                 break
             new_flows = _simulator.get_since(last_ts)
             if new_flows:
                 last_ts = new_flows[-1]["ts"]
-            # Always send heartbeat (even empty flows list keeps stats current)
             payload = json.dumps({"flows": new_flows, "stats": _simulator.get_stats()})
             yield f"data: {payload}\n\n"
+            tick += 1
+            # SSE comment keeps proxies (Cloudflare, nginx) from closing an idle stream
+            if tick % 15 == 0:
+                yield ": keepalive\n\n"
             await asyncio.sleep(1.0)
 
     return StreamingResponse(

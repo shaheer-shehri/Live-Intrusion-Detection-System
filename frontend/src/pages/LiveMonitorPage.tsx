@@ -17,30 +17,79 @@ export default function LiveMonitorPage() {
   }, [paused]);
 
   useEffect(() => {
-    const es = new EventSource(api.monitorLiveURL());
-    esRef.current = es;
+    let es: EventSource | null = null;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let sseFallbackTimer: ReturnType<typeof setTimeout> | null = null;
+    let sseDelivered = false;
 
-    es.onopen = () => setConnected(true);
-    es.onerror = () => setConnected(false);
-    es.onmessage = (event) => {
+    function applyEvent(data: { flows: MonitorFlow[]; stats: MonitorStats }) {
       if (pausedRef.current) return;
-      try {
-        const data = JSON.parse(event.data) as { flows: MonitorFlow[]; stats: MonitorStats };
-        if (data.stats) setStats(data.stats);
-        if (data.flows && data.flows.length > 0) {
-          setFlows((prev) => {
-            const merged = [...prev, ...data.flows];
-            return merged.slice(-MAX_FLOWS);
-          });
-        }
-      } catch {
-        /* ignore malformed event */
+      if (data.stats) setStats(data.stats);
+      if (data.flows && data.flows.length > 0) {
+        setFlows((prev) => {
+          const merged = [...prev, ...data.flows];
+          return merged.slice(-MAX_FLOWS);
+        });
       }
-    };
+    }
+
+    function startPolling() {
+      if (pollTimer) return;
+      setConnected(true);
+      pollTimer = setInterval(async () => {
+        try {
+          const data = await api.getMonitorSnapshot(20);
+          applyEvent(data);
+        } catch {
+          setConnected(false);
+        }
+      }, 2000);
+    }
+
+    function startSSE() {
+      es = new EventSource(api.monitorLiveURL());
+      esRef.current = es;
+
+      // If SSE delivers no data within 5 s, fall back to polling
+      sseFallbackTimer = setTimeout(() => {
+        if (!sseDelivered) {
+          es?.close();
+          esRef.current = null;
+          startPolling();
+        }
+      }, 5000);
+
+      es.onopen = () => setConnected(true);
+
+      es.onerror = () => {
+        setConnected(false);
+        if (!sseDelivered) {
+          if (sseFallbackTimer) clearTimeout(sseFallbackTimer);
+          es?.close();
+          esRef.current = null;
+          startPolling();
+        }
+      };
+
+      es.onmessage = (event) => {
+        sseDelivered = true;
+        if (sseFallbackTimer) { clearTimeout(sseFallbackTimer); sseFallbackTimer = null; }
+        try {
+          const data = JSON.parse(event.data) as { flows: MonitorFlow[]; stats: MonitorStats };
+          applyEvent(data);
+        } catch {
+          /* ignore malformed event */
+        }
+      };
+    }
+
+    startSSE();
 
     return () => {
-      es.close();
+      es?.close();
       esRef.current = null;
+      if (sseFallbackTimer) clearTimeout(sseFallbackTimer);
+      if (pollTimer) clearInterval(pollTimer);
     };
   }, []);
 

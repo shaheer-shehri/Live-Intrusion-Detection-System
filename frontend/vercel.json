@@ -3,6 +3,9 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "env": {
+    "VITE_API_BASE": "https://shaheershehri-ai-project-backend.hf.space"
+  },
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]

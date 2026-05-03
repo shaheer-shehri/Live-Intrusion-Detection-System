@@ -4,44 +4,44 @@ from pydantic import BaseModel, Field
 
 class NetworkInput(BaseModel):
     # String categorical fields
-    proto: str
-    service: str
-    state: str
-    
+    proto: str = "tcp"
+    service: str = "http"
+    state: str = "est"
+
     # Numeric port and timing fields
-    sport: float
-    dsport: float
-    dur: float
-    sttl: float
-    dttl: float
-    sloss: float
-    sload: float
-    dload: float
-    spkts: float
-    swin: float
-    smeansz: float
-    dmeansz: float
-    trans_depth: float
-    res_bdy_len: float
-    sjit: float
-    djit: float
-    sintpkt: float
-    dintpkt: float
-    tcprtt: float
-    synack: float
-    ackdat: float
-    
+    sport: float = 0.0
+    dsport: float = 0.0
+    dur: float = 0.0
+    sttl: float = 64.0
+    dttl: float = 64.0
+    sloss: float = 0.0
+    sload: float = 0.0
+    dload: float = 0.0
+    spkts: float = 0.0
+    swin: float = 0.0
+    smeansz: float = 0.0
+    dmeansz: float = 0.0
+    trans_depth: float = 0.0
+    res_bdy_len: float = 0.0
+    sjit: float = 0.0
+    djit: float = 0.0
+    sintpkt: float = 0.0
+    dintpkt: float = 0.0
+    tcprtt: float = 0.0
+    synack: float = 0.0
+    ackdat: float = 0.0
+
     # Binary and count-based features
-    is_sm_ips_ports: float
-    ct_state_ttl: float
-    ct_ftp_cmd: float
-    ct_srv_src: float
-    ct_srv_dst: float
-    ct_dst_ltm: float
-    ct_src__ltm: float
-    ct_src_dport_ltm: float
-    ct_dst_sport_ltm: float
-    ct_dst_src_ltm: float
+    is_sm_ips_ports: float = 0.0
+    ct_state_ttl: float = 0.0
+    ct_ftp_cmd: float = 0.0
+    ct_srv_src: float = 0.0
+    ct_srv_dst: float = 0.0
+    ct_dst_ltm: float = 0.0
+    ct_src__ltm: float = 0.0
+    ct_src_dport_ltm: float = 0.0
+    ct_dst_sport_ltm: float = 0.0
+    ct_dst_src_ltm: float = 0.0
 
 
 class DriftAssessmentRequest(BaseModel):

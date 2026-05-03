@@ -3,16 +3,17 @@ Local IDS agent.
 
 Runs on the same machine as the user's browser. Detects DNS lookups / TCP
 connections to the watched malicious-demo domains and POSTs a trigger to the
-remote backend (Azure) so the cloud-hosted simulator switches to the matching
+remote backend so the cloud-hosted simulator switches to the matching
 attack scenario.
 
-Usage:
-    set IDS_BACKEND_URL=https://<your-backend>.azurecontainerapps.io
-    set IDS_TRIGGER_TOKEN=<same token as backend>      # optional, only if backend has it set
+Usage (PowerShell):
+    $env:IDS_BACKEND_URL  = "https://shaheershehri-ai-project-backend.hf.space"
+    $env:IDS_TRIGGER_TOKEN = "<same token set on the backend>"   # optional
     python local_agent.py
 
-Or on PowerShell:
-    $env:IDS_BACKEND_URL = "https://<your-backend>.azurecontainerapps.io"
+Usage (cmd):
+    set IDS_BACKEND_URL=https://shaheershehri-ai-project-backend.hf.space
+    set IDS_TRIGGER_TOKEN=<token>
     python local_agent.py
 """
 from __future__ import annotations
