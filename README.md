@@ -1,10 +1,10 @@
 ---
-title: Live Intrusion Detection System
-emoji: 🔒
+title: IDS Backend
+emoji: 🛡️
 colorFrom: blue
-colorTo: green
+colorTo: indigo
 sdk: docker
-app_file: app.py
+app_port: 7860
 pinned: false
 ---
 
