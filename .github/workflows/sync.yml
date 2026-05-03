@@ -32,4 +32,4 @@ jobs:
 
           git add -A
           git diff --staged --quiet || git commit -m "Sync from GitHub: $GITHUB_SHA"
-          git push https://shaheershehri:$HF_TOKEN@huggingface.co/spaces/shaheershehri/AI_project_backend HEAD:main
+          git push --force https://shaheershehri:$HF_TOKEN@huggingface.co/spaces/shaheershehri/AI_project_backend HEAD:main
