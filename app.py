@@ -1,9 +1,9 @@
 """
 Entry point for Hugging Face Spaces deployment.
-This file exposes the FastAPI app from api/main.py
+This file exposes the FastAPI app from ids-backend/api/main.py
 """
 
-from api.main import app
+from ids_backend.api.main import app
 
 if __name__ == "__main__":
     import uvicorn
