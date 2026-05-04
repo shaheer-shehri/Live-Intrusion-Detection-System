@@ -98,16 +98,9 @@ class MessageResponse(BaseModel):
     """Generic message response"""
     message: str
 
-# Batch Processing Setup
-
-MAX_BATCH_SIZE = 10
-MAX_WAIT_TIME = 0.020  # 20 milliseconds window for micro-batching
 DEFAULT_DRIFT_HISTORY_PATH = drift_monitoring.DEFAULT_DRIFT_HISTORY_PATH
 DEFAULT_BASELINE_PATH = drift_monitoring.DEFAULT_BASELINE_PATH
 
-batch_queue = []
-queue_lock = asyncio.Lock()
-batch_ready_event = asyncio.Event()
 drift_monitor = drift_monitoring.load_default_monitor(
     model=model,
     pipeline=pipeline,
@@ -120,57 +113,12 @@ _watcher   = DomainWatcher(trigger_fn=_simulator.trigger)
 _DISABLE_LOCAL_WATCHER = os.environ.get("IDS_DISABLE_LOCAL_WATCHER", "").lower() in {"1", "true", "yes"}
 
 
-def _run_ml_batch(data_list: List[Dict]) -> List[str]:
-    """Runs the whole batch through the ML model synchronously."""
-    df = pd.DataFrame(data_list)
-    X_proc = pipeline.transform(df)
-    # Pass the DataFrame directly so XGBoost 3.x feature-name validation passes.
-    # Converting to numpy would strip column names and raise a ValueError.
-    raw_preds = model.predict(X_proc)
-    
-    results = []
-    for raw_pred in raw_preds:
-        if class_labels and int(raw_pred) < len(class_labels):
-            results.append(class_labels[int(raw_pred)])
-        else:
-            results.append(str(raw_pred))
-    return results
-
-async def predict_task():
-    """Background task that repeatedly pulls data from the queue and processes batches."""
-    while True:
-        await batch_ready_event.wait()
-        # Wait short time for more requests to arrive for optimal batch size
-        await asyncio.sleep(MAX_WAIT_TIME)
-        
-        async with queue_lock:
-            current_batch = batch_queue[:MAX_BATCH_SIZE]
-            del batch_queue[:MAX_BATCH_SIZE]
-            if not batch_queue:
-                batch_ready_event.clear()
-        
-        if not current_batch:
-            continue
-            
-        try:
-            # Offload heavy pandas/numpy work to a background thread
-            preds = await asyncio.to_thread(_run_ml_batch, [req['data'] for req in current_batch])
-            for req, pred in zip(current_batch, preds):
-                req['future'].set_result(pred)
-        except Exception as e:
-            for req in current_batch:
-                if not req['future'].done():
-                    req['future'].set_exception(e)
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Manages the startup and shutdown of the background batch task."""
     _simulator.start()
     if not _DISABLE_LOCAL_WATCHER:
         _watcher.start()
-    task = asyncio.create_task(predict_task())
     yield
-    task.cancel()
     _simulator.stop()
     if not _DISABLE_LOCAL_WATCHER:
         _watcher.stop()
@@ -427,19 +375,13 @@ def _validate_input(data: NetworkInput) -> Dict[str, object]:
 )
 async def predict(data: NetworkInput):
     if model is None:
-        raise HTTPException(status_code=503, detail="Model not loaded — check server logs for the load error")
+        raise HTTPException(status_code=503, detail="Model not loaded")
     try:
         values = _validate_input(data)
-
-        loop = asyncio.get_running_loop()
-        future = loop.create_future()
-
-        async with queue_lock:
-            batch_queue.append({'data': values, 'future': future})
-            batch_ready_event.set()
-
-        label = await future
-        return {"prediction": label}
+        df = pd.DataFrame([values])
+        X_proc = await asyncio.to_thread(pipeline.transform, df)
+        raw_preds = await asyncio.to_thread(model.predict, X_proc)
+        return {"prediction": _label_from_raw(raw_preds[0])}
     except HTTPException:
         raise
     except Exception as e:
