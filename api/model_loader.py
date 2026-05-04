@@ -3,20 +3,14 @@ import platform
 from pathlib import Path
 from typing import Optional, Tuple
 
-# Fix WindowsPath on Linux — two-pronged approach:
-# 1. Redirect the module attribute so string-based pickle lookups get PosixPath.
-# 2. Patch __new__ on the ORIGINAL class so direct class-object references in
-#    the pickle stream (stored by __reduce__) also work.
+# Redirect WindowsPath → PosixPath for pickles saved on Windows.
+# Python 3.13+: pathlib is a package; the pickle stream references
+#   pathlib._local.WindowsPath — patch that submodule directly.
+# Python < 3.13: pathlib is a single file; patch the module attribute.
 if platform.system() != 'Windows':
-    _OrigWindowsPath = pathlib.WindowsPath          # save before reassigning
-    pathlib.WindowsPath = pathlib.PosixPath         # string-lookup fix
-
-    try:
-        _OrigWindowsPath.__new__ = staticmethod(    # direct-ref fix
-            lambda cls, *a, **kw: pathlib.PosixPath(*a, **kw)
-        )
-    except (TypeError, AttributeError):
-        pass  # read-only in some builds; string-lookup fix still covers most cases
+    if hasattr(pathlib, '_local'):
+        pathlib._local.WindowsPath = pathlib._local.PosixPath
+    pathlib.WindowsPath = pathlib.PosixPath
 
 import joblib
 
