@@ -72,6 +72,7 @@ export interface MonitorStats {
   active_scenario: any;
   attack_expires_in_sec: number;
   session_duration_sec: number;
+  agent_connected: boolean;
 }
 
 export interface MonitorEvent {

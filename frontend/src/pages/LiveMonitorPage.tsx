@@ -122,6 +122,20 @@ export default function LiveMonitorPage() {
         </div>
       </div>
 
+      {stats && !stats.agent_connected && (
+        <div className="card p-4 border-l-4 border-yellow-500 bg-yellow-900/10">
+          <div className="flex items-center gap-3">
+            <Activity className="text-yellow-400" size={24} />
+            <div>
+              <p className="font-bold text-yellow-300">Waiting for Local Agent</p>
+              <p className="text-sm text-gray-400">
+                Run <span className="font-mono text-yellow-300">python local_agent.py</span> on your machine to start traffic flow and enable attack detection.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {attackActive && (
         <div className="card p-4 border-l-4 border-red-500 bg-red-900/10">
           <div className="flex items-center gap-3">

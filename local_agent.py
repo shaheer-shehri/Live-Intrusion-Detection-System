@@ -47,6 +47,33 @@ def _request(path: str, method: str = "GET") -> dict:
     with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
         return json.loads(resp.read())
 
+# ── agent lifecycle ───────────────────────────────────────────────────────────
+
+def agent_connect() -> None:
+    try:
+        data = _request("/agent/connect", method="POST")
+        print(f"[agent] connected  — {data.get('message', 'ok')}", flush=True)
+    except Exception as e:
+        print(f"[agent] connect failed: {e}", flush=True)
+
+
+def agent_heartbeat_req() -> None:
+    try:
+        _request("/agent/heartbeat", method="POST")
+    except Exception:
+        pass
+
+
+def agent_disconnect() -> None:
+    try:
+        _request("/agent/disconnect", method="POST")
+        print("[agent] disconnected — traffic flow stopped on backend", flush=True)
+    except Exception:
+        pass
+
+
+# ── trigger (called by DomainWatcher on domain detection) ─────────────────────
+
 def remote_trigger(scenario: str) -> None:
     print(f"\n[agent] *** DOMAIN DETECTED — triggering {scenario.upper()} ***", flush=True)
     try:
@@ -118,25 +145,30 @@ def main() -> int:
     for domain, scenario in WATCH_DOMAINS.items():
         print(f"   {domain:38s}→  {scenario}", flush=True)
 
+    # Signal backend to start traffic flow
+    agent_connect()
+
     # Start domain watcher (DNS cache poll + TCP poll + optional Scapy sniff)
     watcher = DomainWatcher(trigger_fn=remote_trigger)
     watcher.start()
 
     print("\n[agent] monitoring started.", flush=True)
     print("[agent] visit a watched domain to trigger an attack scenario.", flush=True)
-    print("[agent] normal traffic flows continuously on the live monitor.", flush=True)
+    print("[agent] normal traffic is now flowing on the live monitor.", flush=True)
     print("[agent] press Ctrl-C to stop.\n", flush=True)
 
-    # Main loop: print stats every 30 s
+    # Main loop: heartbeat every 30 s + print stats
     tick = 0
     try:
         while True:
             time.sleep(5)
             tick += 1
             if tick % 6 == 0:
+                agent_heartbeat_req()
                 print_stats()
     except KeyboardInterrupt:
         print("\n[agent] stopping …", flush=True)
+        agent_disconnect()
         watcher.stop()
 
     return 0

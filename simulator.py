@@ -158,6 +158,11 @@ class TrafficSimulator:
         self._disabled         = False
         self._disabled_reason  = ""
 
+        # Agent connection gate — traffic only flows while a local agent is connected
+        self._agent_connected  = False
+        self._last_heartbeat   = 0.0
+        self._HEARTBEAT_TIMEOUT = 90.0  # seconds before auto-disconnect
+
         # Initialize data structures with safe defaults
         self._model = None
         self._class_labels: List[str] = []
@@ -270,6 +275,21 @@ class TrafficSimulator:
             self._current_scenario = None
             self._current_key      = None
 
+    # ── agent connection gate ─────────────────────────────────────────────────
+
+    def agent_connect(self) -> None:
+        with self._lock:
+            self._agent_connected = True
+            self._last_heartbeat  = time.time()
+
+    def agent_heartbeat(self) -> None:
+        with self._lock:
+            self._last_heartbeat = time.time()
+
+    def agent_disconnect(self) -> None:
+        with self._lock:
+            self._agent_connected = False
+
     # ── background loop ───────────────────────────────────────────────────────
 
     def _next_row(self):
@@ -304,6 +324,15 @@ class TrafficSimulator:
     def _run_loop(self) -> None:
         while self._running:
             if self._disabled:
+                time.sleep(1)
+                continue
+
+            # Auto-disconnect if heartbeat timed out
+            with self._lock:
+                if self._agent_connected and time.time() - self._last_heartbeat > self._HEARTBEAT_TIMEOUT:
+                    self._agent_connected = False
+
+            if not self._agent_connected:
                 time.sleep(1)
                 continue
 
@@ -398,6 +427,7 @@ class TrafficSimulator:
             "active_scenario":        scenario,
             "attack_expires_in_sec":  max(0, round(attack_until - time.time())) if state != "normal" else 0,
             "session_duration_sec":   round(time.time() - self._session_start),
+            "agent_connected":        self._agent_connected,
         }
 
     @property

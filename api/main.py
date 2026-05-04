@@ -551,6 +551,36 @@ async def monitor_live(request: Request):
     )
 
 
+# ── Agent connection endpoints ────────────────────────────────────────────────
+
+def _check_token(request: Request) -> None:
+    if _TRIGGER_TOKEN:
+        auth = request.headers.get("authorization", "")
+        if not auth.startswith("Bearer ") or auth[7:].strip() != _TRIGGER_TOKEN:
+            raise HTTPException(status_code=401, detail="Invalid or missing token")
+
+
+@app.post("/agent/connect", tags=["Simulator"], summary="Agent connect — starts traffic flow")
+def agent_connect(request: Request):
+    _check_token(request)
+    _simulator.agent_connect()
+    return {"status": "connected", "message": "Traffic flow started"}
+
+
+@app.post("/agent/heartbeat", tags=["Simulator"], summary="Agent heartbeat — keeps traffic flowing")
+def agent_heartbeat(request: Request):
+    _check_token(request)
+    _simulator.agent_heartbeat()
+    return {"status": "ok"}
+
+
+@app.post("/agent/disconnect", tags=["Simulator"], summary="Agent disconnect — stops traffic flow")
+def agent_disconnect(request: Request):
+    _check_token(request)
+    _simulator.agent_disconnect()
+    return {"status": "disconnected", "message": "Traffic flow stopped"}
+
+
 # ── Remote trigger (used by local_agent.py when backend is in the cloud) ──────
 
 _TRIGGER_TOKEN = os.environ.get("IDS_TRIGGER_TOKEN", "").strip()
