@@ -26,7 +26,7 @@ import urllib.request
 
 from domain_watcher import WATCH_DOMAINS, DomainWatcher
 
-BACKEND_URL = os.environ.get("IDS_BACKEND_URL", "http://localhost:8000").rstrip("/")
+BACKEND_URL = os.environ.get("IDS_BACKEND_URL", "https://shaheershehri-ai-project-backend.hf.space").rstrip("/")
 TOKEN       = os.environ.get("IDS_TRIGGER_TOKEN", "").strip()
 TIMEOUT     = 5.0
 

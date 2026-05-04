@@ -7,7 +7,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Dict, List, Optional
 
-import numpy as np
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -125,10 +124,8 @@ def _run_ml_batch(data_list: List[Dict]) -> List[str]:
     """Runs the whole batch through the ML model synchronously."""
     df = pd.DataFrame(data_list)
     X_proc = pipeline.transform(df)
-    if hasattr(X_proc, "to_numpy"):
-        X_proc = X_proc.to_numpy()
-    else:
-        X_proc = np.asarray(X_proc)
+    # Pass the DataFrame directly so XGBoost 3.x feature-name validation passes.
+    # Converting to numpy would strip column names and raise a ValueError.
     raw_preds = model.predict(X_proc)
     
     results = []
@@ -470,9 +467,7 @@ async def predict_batch(file: UploadFile = File(...)):
         feat_df   = df.drop(columns=drop_cols, errors="ignore").fillna(0)
 
         X_proc = await asyncio.to_thread(pipeline.transform, feat_df)
-        X_np   = X_proc.to_numpy() if hasattr(X_proc, "to_numpy") else np.asarray(X_proc)
-
-        raw_preds = await asyncio.to_thread(model.predict, X_np)
+        raw_preds = await asyncio.to_thread(model.predict, X_proc)
         labels = [_label_from_raw(p) for p in raw_preds]
 
         from collections import Counter
