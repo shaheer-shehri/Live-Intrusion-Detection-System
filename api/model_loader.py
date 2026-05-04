@@ -1,11 +1,22 @@
 import pathlib
+import pickle
 import platform
 from pathlib import Path
 from typing import Optional, Tuple
 
-# Fix WindowsPath on Linux — must be before any joblib.load calls
+# Fix WindowsPath on Linux — patch pickle.Unpickler.find_class so joblib
+# (which inherits from it) redirects WindowsPath → PosixPath at unpickle time.
 if platform.system() != 'Windows':
     pathlib.WindowsPath = pathlib.PosixPath
+
+    _orig_find_class = pickle.Unpickler.find_class
+
+    def _patched_find_class(self, module, name):
+        if name == 'WindowsPath':
+            return pathlib.PosixPath
+        return _orig_find_class(self, module, name)
+
+    pickle.Unpickler.find_class = _patched_find_class
 
 import joblib
 
@@ -32,7 +43,6 @@ def load_pipeline():
     try:
         return joblib.load(PIPELINE_PATH)
     except Exception:
-        # Fallback: occurs when artifacts have OS-specific paths or incompatible imports
         return _FallbackPipeline()
 
 
