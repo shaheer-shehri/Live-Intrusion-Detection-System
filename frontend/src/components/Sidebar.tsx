@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { LayoutDashboard, Zap, Upload, BarChart3, ChevronRight, Radio } from 'lucide-react';
+import { api } from '../services/api';
 
 interface SidebarProps {
   currentPage: string;
@@ -15,6 +17,18 @@ const menuItems = [
 ];
 
 export default function Sidebar({ currentPage, setCurrentPage, isOpen }: SidebarProps) {
+  const [health, setHealth] = useState<{ model_loaded: boolean; simulator_active: boolean; simulator_error?: string } | null>(null);
+
+  useEffect(() => {
+    const check = () => api.getHealth().then(setHealth).catch(() => setHealth(null));
+    check();
+    const t = setInterval(check, 15000);
+    return () => clearInterval(t);
+  }, []);
+
+  const statusLabel = health === null ? '🔴 Offline' : health.simulator_active ? '🟢 Online' : '🟡 Degraded';
+  const statusTitle = health?.simulator_error ?? undefined;
+
   return (
     <aside
       className={`${
@@ -60,9 +74,12 @@ export default function Sidebar({ currentPage, setCurrentPage, isOpen }: Sidebar
       <div className="px-4 py-6 border-t border-gray-700">
         {isOpen && (
           <div className="text-xs text-gray-500 space-y-1">
-            <p className="font-semibold">Status: 🟢 Online</p>
+            <p className="font-semibold" title={statusTitle}>Status: {statusLabel}</p>
             <p>Model: XGBoost</p>
             <p>Accuracy: 94.43%</p>
+            {health?.simulator_error && (
+              <p className="text-yellow-500 truncate" title={health.simulator_error}>⚠ {health.simulator_error}</p>
+            )}
           </div>
         )}
       </div>

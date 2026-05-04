@@ -41,6 +41,8 @@ class HealthCheckResponse(BaseModel):
     status: str
     circuit_breaker: str
     model_loaded: bool
+    simulator_active: bool
+    simulator_error: Optional[str]
     active_requests: int
     error_rate: float
 
@@ -254,6 +256,8 @@ def health_check():
         "status": status,
         "circuit_breaker": metrics.circuit_state,
         "model_loaded": model is not None,
+        "simulator_active": not _simulator._disabled,
+        "simulator_error": _simulator._disabled_reason if _simulator._disabled else None,
         "active_requests": metrics.active_requests,
         "error_rate": (
             metrics.failed_requests / metrics.total_requests
@@ -425,16 +429,18 @@ def _validate_input(data: NetworkInput) -> Dict[str, object]:
     description="""Predict if network traffic""",
 )
 async def predict(data: NetworkInput):
+    if model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded — check server logs for the load error")
     try:
         values = _validate_input(data)
-        
+
         loop = asyncio.get_running_loop()
         future = loop.create_future()
-        
+
         async with queue_lock:
             batch_queue.append({'data': values, 'future': future})
             batch_ready_event.set()
-            
+
         label = await future
         return {"prediction": label}
     except HTTPException:
