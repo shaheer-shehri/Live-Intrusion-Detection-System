@@ -42,3 +42,10 @@ def load_pipeline():
 
 model, class_labels = load_model()
 pipeline = load_pipeline()
+
+# XGBoost validates column order; cache expected order once at startup.
+feature_names: Optional[list] = (
+    list(model.feature_names_in_)
+    if model is not None and hasattr(model, "feature_names_in_")
+    else None
+)

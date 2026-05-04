@@ -9,12 +9,17 @@ export interface NetworkFlow {
   sport: number;
   dsport: number;
   dur: number;
+  sbytes: number;
+  dbytes: number;
   sttl: number;
   dttl: number;
   sloss: number;
   sload: number;
   dload: number;
   spkts: number;
+  dwin: number;
+  stcpb: number;
+  dtcpb: number;
   swin: number;
   smeansz: number;
   dmeansz: number;
@@ -22,6 +27,7 @@ export interface NetworkFlow {
   res_bdy_len: number;
   sjit: number;
   djit: number;
+  stime: number;
   sintpkt: number;
   dintpkt: number;
   tcprtt: number;

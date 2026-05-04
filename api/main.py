@@ -18,7 +18,7 @@ from api.schemas import (
     DriftAssessmentRequest,
     DriftAssessmentResponse,
 )
-from api.model_loader import class_labels, model, pipeline
+from api.model_loader import class_labels, feature_names, model, pipeline
 from monitoring import drift as drift_monitoring
 from simulator import TrafficSimulator
 from domain_watcher import DomainWatcher
@@ -283,12 +283,17 @@ def _validate_input(data: NetworkInput) -> Dict[str, object]:
         "sport",
         "dsport",
         "dur",
+        "sbytes",
+        "dbytes",
         "sttl",
         "dttl",
         "sloss",
         "sload",
         "dload",
         "spkts",
+        "dwin",
+        "stcpb",
+        "dtcpb",
         "swin",
         "smeansz",
         "dmeansz",
@@ -296,6 +301,7 @@ def _validate_input(data: NetworkInput) -> Dict[str, object]:
         "res_bdy_len",
         "sjit",
         "djit",
+        "stime",
         "sintpkt",
         "dintpkt",
         "tcprtt",
@@ -317,6 +323,9 @@ def _validate_input(data: NetworkInput) -> Dict[str, object]:
         "sport",
         "dsport",
         "dur",
+        "sbytes",
+        "dbytes",
+        "dwin",
         "sttl",
         "dttl",
         "sloss",
@@ -380,6 +389,8 @@ async def predict(data: NetworkInput):
         values = _validate_input(data)
         df = pd.DataFrame([values])
         X_proc = await asyncio.to_thread(pipeline.transform, df)
+        if feature_names is not None:
+            X_proc = X_proc[feature_names]
         raw_preds = await asyncio.to_thread(model.predict, X_proc)
         return {"prediction": _label_from_raw(raw_preds[0])}
     except HTTPException:

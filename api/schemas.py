@@ -31,6 +31,14 @@ class NetworkInput(BaseModel):
     synack: float = 0.0
     ackdat: float = 0.0
 
+    # Fields required by the model that are not user-visible in the simple form
+    sbytes: float = 500.0
+    dbytes: float = 1000.0
+    dwin: float = 8192.0
+    stcpb: float = 0.0
+    dtcpb: float = 0.0
+    stime: float = 0.0
+
     # Binary and count-based features
     is_sm_ips_ports: float = 0.0
     ct_state_ttl: float = 0.0
