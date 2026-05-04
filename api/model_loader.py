@@ -1,26 +1,26 @@
 import pathlib
-import pickle
 import platform
 from pathlib import Path
 from typing import Optional, Tuple
 
-# Fix WindowsPath on Linux — patch pickle.Unpickler.find_class so joblib
-# (which inherits from it) redirects WindowsPath → PosixPath at unpickle time.
+# Fix WindowsPath on Linux — two-pronged approach:
+# 1. Redirect the module attribute so string-based pickle lookups get PosixPath.
+# 2. Patch __new__ on the ORIGINAL class so direct class-object references in
+#    the pickle stream (stored by __reduce__) also work.
 if platform.system() != 'Windows':
-    pathlib.WindowsPath = pathlib.PosixPath
+    _OrigWindowsPath = pathlib.WindowsPath          # save before reassigning
+    pathlib.WindowsPath = pathlib.PosixPath         # string-lookup fix
 
-    _orig_find_class = pickle.Unpickler.find_class
-
-    def _patched_find_class(self, module, name):
-        if name == 'WindowsPath':
-            return pathlib.PosixPath
-        return _orig_find_class(self, module, name)
-
-    pickle.Unpickler.find_class = _patched_find_class
+    try:
+        _OrigWindowsPath.__new__ = staticmethod(    # direct-ref fix
+            lambda cls, *a, **kw: pathlib.PosixPath(*a, **kw)
+        )
+    except (TypeError, AttributeError):
+        pass  # read-only in some builds; string-lookup fix still covers most cases
 
 import joblib
 
-MODEL_PATH = Path("models/saved/improved_xgboost_mc.joblib")
+MODEL_PATH    = Path("models/saved/improved_xgboost_mc.joblib")
 PIPELINE_PATH = Path("processed_data_mc/combined_preprocessing_pipeline.joblib")
 
 
