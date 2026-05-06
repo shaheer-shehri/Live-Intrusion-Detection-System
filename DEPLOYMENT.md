@@ -226,7 +226,6 @@ You'll see:
 - When detected, the agent POSTs `/trigger/<scenario>` to the Azure backend with the bearer token.
 - The simulator switches to attack mode → next SSE push includes attack flows → UI lights up red.
 
----
 
 ## 7. Common pitfalls
 
